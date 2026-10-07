@@ -37,24 +37,29 @@ export function AccessCodeGuard({ children }: { children: ReactNode }) {
 
   const needsAuth = !status.loading && status.enabled && !status.authenticated;
 
-  return (
-    <>
-      {needsAuth && (
-        <AccessCodeModal
-          open={true}
-          onSuccess={() => {
-            setStatus((s) => ({ ...s, authenticated: true }));
-            // ServerProvidersInit runs on mount, which on an ACCESS_CODE-gated
-            // deployment is before any access cookie exists: the middleware
-            // answers 401 and the store silently keeps its blank defaults.
-            // Nothing re-fetches afterwards, so every server-configured
-            // provider reads as unconfigured until a manual reload. Re-fetch
-            // now that the request will be authorized.
-            void useSettingsStore.getState().fetchServerProviders();
-          }}
-        />
-      )}
-      {children}
-    </>
-  );
+  // Children must not mount until the gate is resolved. They used to render
+  // alongside the modal, so a page opened directly by URL (e.g.
+  // /classroom/<id>) issued its data requests before any access cookie
+  // existed: the middleware answered 401 and the page showed a storage error
+  // that only a manual Retry cleared. Holding children back until the visitor
+  // is authenticated removes that race for every gated page, rather than
+  // patching one symptom at a time.
+  if (status.loading) return null;
+
+  if (needsAuth) {
+    return (
+      <AccessCodeModal
+        open={true}
+        onSuccess={() => {
+          setStatus((s) => ({ ...s, authenticated: true }));
+          // ServerProvidersInit ran on mount before any access cookie existed,
+          // so the store kept its blank defaults. Re-fetch now that the
+          // request will be authorized.
+          void useSettingsStore.getState().fetchServerProviders();
+        }}
+      />
+    );
+  }
+
+  return <>{children}</>;
 }
