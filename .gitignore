@@ -74,6 +74,13 @@ next-env.d.ts
 
 # docs
 /docs
+# ...except this project's Level-2+ deliverables, which the instruction names by
+# path (docs/LEVEL2_ARCHITECTURE_AUDIT.md, docs/ADMIN_MANUAL.md, and so on).
+!/docs/
+/docs/*
+!/docs/LEVEL*.md
+!/docs/*_MANUAL.md
+!/docs/UPSTREAM_DELTA.md
 # Eval results
 eval/whiteboard-layout/results/
 eval/outline-language/results/
