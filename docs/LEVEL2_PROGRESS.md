@@ -17,8 +17,10 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 - [x] Create branch `feature/level2-rbac`
 - [x] Preserve upstream reference *(remote `upstream` → THU-MAIC/OpenMAIC retained)*
 - [x] Preserve Level-1 cloud deployment *(openmaic-bice-five.vercel.app, untouched)*
-- [x] Confirm Level 1 still passes: instructor creates course · student accesses classroom ·
-      student interacts · student cannot edit course
+- [x] Confirm Level 1 still passes — **all four, on the deployed Level-2 site**: an instructor
+      generated a course while signed in; a student opened the classroom; the lesson played and
+      wrote 2 runtime records under that student's own account while the other student stayed at 0;
+      a student editing the course is refused
 
 ## B. Audit before design — **required before any schema work**
 

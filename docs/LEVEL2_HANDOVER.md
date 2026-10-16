@@ -162,3 +162,25 @@ already specifies the last two.
 
 Level 2 is complete against all 22 criteria, with item 14 qualified as above. **Level 3 has not been
 started**, as the instruction directs.
+
+---
+
+## 10. Final end-to-end check on the deployed site
+
+Added after the handover was first written, because the instruction's own pre-check list —
+*"instructor creates course; student accesses classroom; student interacts; student cannot edit
+course"* — had only three of its four parts verified.
+
+| Step | Result |
+|---|---|
+| Instructor generates a course while signed in | ✅ scenes and AI personas produced; `stage_meta.owner_id` equals that instructor's `auth_user_id` |
+| Student signs in and sees only their enrolled courses | ✅ |
+| **Student opens the classroom** | ✅ slide renders, AI teacher present, controls work |
+| **Student interacts** | ✅ the lesson played and the AI teacher spoke |
+| Interaction is recorded against that student | ✅ **2 runtime records under `user:<student 1's auth_user_id>`**, while student 2, who did not interact, stayed at **0** |
+| Instructor reads it back | ✅ `student1 records=2 · student2 records=0`, each listed separately |
+| Student cannot edit the course | ✅ 403 |
+
+The last three rows are the clearest evidence in the whole level that the identity substitution
+worked: the same classroom that Level 1 ran anonymously now attributes every record to a named
+account, and two students in one course do not see or affect each other's data.
