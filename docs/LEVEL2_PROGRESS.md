@@ -32,6 +32,9 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 ## C. Authentication and users
 
 - [x] Individual authentication (Supabase Auth) — `lib/level2/session.ts`, verified end to end
+- [x] The shared ACCESS_CODE is retired for Level 2: accounts authorize, and a code every student
+      would have to know is not a control. Verified afterwards that every owner-scoped API still
+      answers 401 without a session, and that only the sign-in page is reachable
 - [x] `user_profiles` (id, auth_user_id, email, display_name, role, external_identifier,
       institution, status, created_at, updated_at)
 - [x] Roles ADMIN / INSTRUCTOR / STUDENT; status ACTIVE / INACTIVE / PENDING *(CHECK constraints, tested)*
@@ -88,7 +91,9 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 ## I. Course duplication (prepares Level 3)
 
-- [ ] Duplicate Course: new id; original unchanged; **learner runtime not copied**; enrollment not copied
+- [x] Duplicate Course: new id; original unchanged; content copied; **learner runtime not copied**
+      (0 against the source's 2); enrolment not copied (0 against 2); the duplicating instructor
+      becomes OWNER; the copy starts as DRAFT
 
 ## J. Testing — *"Do not rely only on browser testing. Test APIs directly."*
 

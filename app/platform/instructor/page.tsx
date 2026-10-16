@@ -128,6 +128,17 @@ export default function InstructorDashboard() {
                 <Button asChild size="sm" variant="outline"><Link href={`/classroom/${course.stageId}`}>Open classroom</Link></Button>
                 <Button size="sm" variant="outline" onClick={() => open(course, 'students')}>Manage students</Button>
                 <Button size="sm" variant="outline" onClick={() => open(course, 'results')}>Results</Button>
+                <Button size="sm" variant="ghost" onClick={async () => {
+                  const res = await fetch(`/api/level2/courses/${course.stageId}/duplicate`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: `${course.title} (copy)` }),
+                  });
+                  const body = await res.json().catch(() => ({}));
+                  setMessage(res.ok
+                    ? `Duplicated as "${body.title}". The copy starts as a draft with no students and no learner data.`
+                    : (body?.error?.message ?? `Failed (${res.status})`));
+                  if (res.ok) reload();
+                }}>Duplicate</Button>
               </div>
             </CardContent>
           </Card>

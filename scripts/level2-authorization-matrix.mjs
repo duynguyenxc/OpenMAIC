@@ -16,11 +16,8 @@ const BASE = 'http://localhost:3000';
 
 let gateCookie = '';
 export async function openGate() {
-  const r = await fetch(`${BASE}/api/access-code/verify`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ code: env.ACCESS_CODE }),
-  });
-  gateCookie = (r.headers.getSetCookie?.() ?? []).map(c=>c.split(';')[0]).join('; ');
+  // Level 2 authorizes by account; there is no shared access code to open.
+  gateCookie = '';
 }
 
 export async function signIn(email) {
