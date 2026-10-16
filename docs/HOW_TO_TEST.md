@@ -3,205 +3,217 @@
 **OpenMAIC teaching platform — Level 2**
 Duy Nguyen · 2026-10-16
 
-This guide shows you how to test the system yourself. You do not need to install anything. You only
-need a web browser.
+You do not need to install anything. You need a web browser and this page.
 
-**Website:** https://openmaic-level2.vercel.app
+**Open this link:** https://openmaic-level2.vercel.app
 
-There is no shared code to type. You sign in with an account, like any normal website.
+The first thing you see is a **Sign in** box. That is correct. There is no public sign-up, and there
+is no shared code to type any more. Every person signs in with their own account, and the account
+decides what they are allowed to see. The accounts you need are listed below.
 
 ---
 
-## Before you start
+## 1. The test accounts
 
-You need the test accounts and their passwords. There are six:
+Six accounts are already made for you. Copy the email and the password exactly.
 
-| Role | Email |
+| Role | Email | Password |
+|---|---|---|
+| **Administrator** | `admin@example.test` | `T2-0qLYeKyArSOg` |
+| **Instructor** | `instructor1@example.test` | `T2-J2FbpEUaChbV` |
+| **Instructor** | `instructor2@example.test` | `T2-f8EJuKrdjmiB` |
+| **Student** | `student1@example.test` | `T2-Zh-Wyu-g6-BP` |
+| **Student** | `student2@example.test` | `T2-OEhQCDyT8meI` |
+| **Student** | `student3@example.test` | `T2-IdUWRcNGsgWm` |
+
+These are throwaway accounts on a test website. They are not used anywhere else, and you should not
+reuse these passwords anywhere else. Tell Duy if you want them changed; it takes one command.
+
+**What each role can do**
+
+| Role | Can do |
 |---|---|
-| Administrator | `admin@example.test` |
-| Instructor | `instructor1@example.test` |
-| Instructor | `instructor2@example.test` |
-| Student | `student1@example.test` |
-| Student | `student2@example.test` |
-| Student | `student3@example.test` |
+| Administrator | See every account and every course. Change a person's role. Turn an account off. |
+| Instructor | Make courses, teach them, add students, read their own students' work. Nothing of another instructor's. |
+| Student | Open the courses they are enrolled in. Nothing else. |
 
-The passwords are kept in a file that is **not** in the code repository. Ask Duy for them.
+**How the test data is arranged**
 
-**How the test data is set up:**
+- **Instructor One** owns the course **"Demo 1 — Realist Evaluation (Instructor One)"**.
+  Student One and Student Two are enrolled in it. Student One has already taken the lesson, so there
+  is real data to look at.
+- **Instructor Two** owns **"Demo 2 — Instructor Two private course"**. Student Three is in it.
+  Instructor One and Students One and Two have nothing to do with it.
 
-- Instructor 1 owns one course. Students 1 and 2 are in it.
-- Instructor 2 owns a different course. Student 3 is in it.
-
-This lets you check that people only see their own courses.
+You will also see other courses with names like *Course A*, *Course B* and *Untitled course*. Those
+are left over from the automated security runs. Ignore them; use the two **Demo** courses.
 
 ---
 
-## Test 1 — Sign in works (2 minutes)
+## 2. The short walkthrough (about 15 minutes)
+
+Follow this from top to bottom. After each step there is a line saying what should happen. If
+something different happens, that is a finding — please tell Duy.
+
+### Step 1 — You are not let in without an account
 
 1. Open https://openmaic-level2.vercel.app
-2. You will be sent to a sign-in page.
-3. Sign in as `admin@example.test`.
 
-**What should happen:** you land on the Administrator page. You did not have to choose a page — the
-system looked at your account and sent you to the right one.
+**Should happen:** you land on the **Sign in** box, not on a classroom and not on an error.
 
-4. Click **Sign out**, then sign in as `instructor1@example.test`.
+*(This was broken until 16 October: a visitor with no account saw the message "Persistence is
+unavailable". It is fixed; this step checks the fix.)*
 
-**What should happen:** this time you land on the Instructor page.
+### Step 2 — The account decides the page, not the address
 
-5. Sign out, then sign in as `student1@example.test`.
+2. Sign in as **`admin@example.test`**.
 
-**What should happen:** you land on the Student page.
+**Should happen:** you land on the **Administrator** page. You did not pick it; the system read your
+account and sent you there.
 
-**Why this matters:** each person gets the right page from their account, not from the address they
-type.
+3. Look at the top table, **Users**. Six people, each with a role and a status.
+4. Look at the lower table, **All courses**. Every course on the platform, with its owner, how many
+   students it has, and when it was last used.
+5. Try to change **your own** role with the dropdown on your own row.
 
----
+**Should happen:** you cannot. Your own row is switched off, so the last administrator cannot lock
+everybody out by mistake.
 
-## Test 2 — A student sees only their own courses (2 minutes)
+6. Click **Sign out**.
 
-1. Sign in as `student1@example.test`.
-2. Look at **My courses**.
+### Step 3 — An instructor sees only their own courses
 
-**What should happen:** you see the course from Instructor 1. You see the teacher's name, the
-status, and an **Open course** button.
+7. Sign in as **`instructor1@example.test`**.
 
-**What should also happen — and this is the point:** you do **not** see:
-- any button to make a new course
-- any Edit or Delete button
-- any list of other students
-- any settings for the AI
+**Should happen:** you land on the **Instructor** page, titled *My courses*. Every course listed
+belongs to Instructor One. **"Demo 2 — Instructor Two private course" is not there.**
 
-3. Sign out and sign in as `student3@example.test`.
+8. Find **"Demo 1 — Realist Evaluation (Instructor One)"**. It should say *Students: 2*.
 
-**What should happen:** you see a different course. You do **not** see Student 1's course.
+### Step 4 — The class roster
 
----
+9. On that course, click **Manage students**, then scroll to the bottom of the page. The panel opens
+   there.
 
-## Test 3 — A student can take a lesson (5 minutes)
+**Should happen:** Student One and Student Two, each with a student number (JSU-00001, JSU-00002).
 
-1. Sign in as `student1@example.test`.
-2. Click **Open course** on any course.
+10. In the box, type `student3@example.test` and click **Add student**.
 
-**What should happen:** the classroom opens. You see a slide, an AI teacher, and AI classmates.
+**Should happen:** the message *Enrolled student3@example.test*, and a third row appears.
 
-3. Press the **Play** button under the slide.
+11. Click **Deactivate** on that new row.
 
-**What should happen:** the AI teacher starts to speak the lesson. The notes panel on the right
-highlights the sentence being spoken.
+**Should happen:** the row turns **INACTIVE** and the button becomes **Reactivate**. Nothing is
+destroyed; access is only turned off, and you can turn it back on.
 
-**Why this matters:** this is the original OpenMAIC classroom. Adding accounts did not break it.
+### Step 5 — What the students actually did
 
----
+12. Click **Close**, then click **Results** on the same course, and scroll to the bottom again.
 
-## Test 4 — An instructor can manage their class (5 minutes)
+**Should happen:** one row per student, with how many sessions and how many interactions each one
+had, and the time of their last activity. Student One has activity; Student Three has none.
 
-1. Sign in as `instructor1@example.test`.
-2. Look at your course. You should see the number of students, the co-instructors, and the time of
-   the last activity.
-3. Click **Manage students**.
+13. Click **View trajectory** on **Student One**.
 
-**What should happen:** you see the students in the course, with their student numbers. You can add
-a student by typing their email, and you can deactivate one.
+**Should happen:** the real transcript appears — every message, with a date and time, exactly as it
+was saved. This is the record of one student's learning, and only their instructor can open it.
 
-4. Click **Close**, then click **Results**.
+14. Click **Export CSV**.
 
-**What should happen:** you see each student with how many sessions and how many interactions they
-have had.
+**Should happen:** a file downloads. Open it in Excel. One row per thing a student did, with the
+course, the student number, the time, what the student wrote, and what the AI replied.
 
-5. Click **View trajectory** on a student who has used the classroom.
+Some columns — the quiz and project columns — are **empty**. That is deliberate. The system has not
+produced any quiz or project records yet, and we do not write invented values into an export. The
+limits document explains this.
 
-**What should happen:** you see what that student did, in time order, with what the AI said back.
+15. Sign out.
 
-**Important:** if Student 1 took the lesson in Test 3 and Student 2 did not, you should see that
-Student 1 has interactions and Student 2 has none. Their data is separate.
+### Step 6 — The classroom still works
 
----
+16. Sign in as **`student1@example.test`**.
 
-## Test 5 — An instructor cannot see another teacher's class (3 minutes)
+**Should happen:** the **Student** page. Only courses this student is enrolled in. There is no button
+to make a course, no Edit button, no list of other students, and no AI settings.
 
-This is the most important test.
+17. Click **Open course** on **"Demo 1 — Realist Evaluation (Instructor One)"**.
 
-1. Sign in as `instructor1@example.test`. Write down which courses you see.
-2. Sign out. Sign in as `instructor2@example.test`.
+**Should happen:** the classroom opens with a slide, an AI teacher (Dr. Maya Bennett) and AI
+classmates. The lesson is about realist evaluation and the Context–Mechanism–Outcome idea.
 
-**What should happen:** you see a **different** course. Instructor 1's course is **not** in your
-list.
+18. Press the round **Play** button in the middle of the slide.
 
-3. While signed in as Instructor 2, try to open Instructor 1's course directly. Take the web address
-   of that course and type it into the address bar.
+**Should happen:** the teacher starts speaking, and the text panel at the bottom follows along.
 
-**What should happen:** you are refused. You do not see the course.
+This is the original OpenMAIC classroom, untouched. Adding accounts did not break it. Anything the
+student does here is written to that student's own record — which is what you just read in Step 5.
 
-**Why this matters:** knowing the address of a course is not enough to open it. Before this level,
-it was.
+### Step 7 — The test that matters most
 
----
+19. Still signed in as Student One, put this address in the address bar:
 
-## Test 6 — Export the class data (2 minutes)
+```
+https://openmaic-level2.vercel.app/classroom/Te0sq0vfz
+```
 
-1. Sign in as `instructor1@example.test`.
-2. Open **Results** on your course.
-3. Click **Export CSV**.
+That is Instructor Two's course — a course this student is **not** enrolled in.
 
-**What should happen:** a file downloads. Open it in Excel or Google Sheets.
+**Should happen:** you are refused, with the message *document authorization required*. You do not
+see the course.
 
-**What you should see:** one row for each thing a student did, with the course, the student number,
-the time, what the student wrote, and what the AI replied.
+The refusal comes from the server, not from the page. Hiding a button is not security; the server
+checks every single request against the enrolment list. Before this level, knowing the address was
+enough to open any course.
 
-**What you will also see:** some columns are empty — quiz and PBL columns. This is on purpose. The
-system has not produced any quiz or project records yet, and we do not put made-up values into an
-export. See the limits document for more.
+20. To see the same fence between two teachers: sign out, sign in as
+    **`instructor2@example.test`**, and look at *My courses*. Instructor One's Demo 1 is not listed.
+    Then try to open it by address:
 
----
+```
+https://openmaic-level2.vercel.app/classroom/Tdm20whad
+```
 
-## Test 7 — The administrator can manage people (3 minutes)
-
-1. Sign in as `admin@example.test`.
-
-**What should happen:** you see all six accounts with their roles, and all courses on the platform.
-
-2. Try to change **your own** role using the dropdown on your own row.
-
-**What should happen:** you cannot. The control is switched off for your own row.
-
-**Why this matters:** if the last administrator could lower their own role, nobody could manage the
-platform afterwards.
+**Should happen:** refused again.
 
 ---
 
-## Test 8 — The security tests (for a technical reader)
+## 3. The automatic security tests (for a technical reader)
 
-All the checks above, and many more, run automatically. There are 41 of them and they all pass
-against the live website.
+Everything above, and much more, runs without a person clicking. There are 41 checks and they all
+pass against the live website.
 
 ```bash
 cd ~/Downloads/OpenMAIC
 BASE_URL=https://openmaic-level2.vercel.app node scripts/level2-security-tests.mjs
 ```
 
-The script makes its own courses and students each time it runs, so it does not depend on data left
-by earlier tests. It checks things a person cannot easily check by clicking, such as:
+The script makes its own courses and students each time, so it does not depend on data left behind
+by earlier runs. It checks things a person cannot easily check by clicking:
 
-- A student sending a request that pretends to be another student. This is refused.
-- A student asking for another student's answers directly. This is refused.
-- Someone with no account asking for anything at all. This is refused.
+- A student sending a request that claims to be a different student → refused.
+- A student asking for another student's saved answers directly → refused.
+- A student trying to create a course → refused, and nothing half-made is left behind.
+- Someone with no account asking for anything at all → refused.
 
 ---
 
-## If something does not work
+## 4. If something does not look right
 
 | What you see | What it usually means |
 |---|---|
-| A student says a course is missing | The course is not published yet, or the student is not enrolled. The instructor can fix both. |
-| Sign-in is refused and the password is right | The account may be waiting for an administrator to approve it. |
-| A course page shows an error once | Reload the page. If it continues, tell Duy. |
+| A student says a course is missing | The course is not published, or that student is not enrolled. The instructor can fix both. |
+| Sign-in refused and the password is right | The account may be waiting for an administrator to approve it. Check **Status** on the Administrator page. |
+| A page shows an error once | Reload. If it keeps happening, tell Duy — with the address you were on. |
+| An error message that looks like code | The refusals are correct but the wording is raw. Making them friendly is on the list, and it is cosmetic, not a security problem. |
 | Making a new course does nothing | The AI key may have run out of credit. |
 
 ---
 
-## What you should look at first
+## 5. If you only have ten minutes
 
-If you only have ten minutes, do **Test 2**, **Test 3** and **Test 5**. Together they show the three
-things that matter most: a student sees only their own courses, the classroom still works, and one
-teacher cannot reach another teacher's class.
+Do **Step 6**, then **Step 7**, then **Step 5**. Together they show the three things that matter:
+the classroom still teaches, one person cannot reach another person's class even with the address,
+and the instructor can see exactly what their own students did.
+
+There is also a recorded walkthrough of all of this, as a short animation:
+`docs/demo/level2-walkthrough.gif`.

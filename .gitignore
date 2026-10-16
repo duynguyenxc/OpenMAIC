@@ -84,6 +84,7 @@ next-env.d.ts
 !/docs/HOW_TO_TEST.md
 !/docs/WHAT_IT_DOES_AND_LIMITS.md
 !/docs/screenshots/
+!/docs/demo/
 # Eval results
 eval/whiteboard-layout/results/
 eval/outline-language/results/

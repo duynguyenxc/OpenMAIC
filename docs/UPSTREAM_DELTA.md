@@ -7,13 +7,13 @@ Nearly all of Level 2 is **new files**; the list below is everything that touche
 maintains.
 
 ```
- .gitignore                             |  10 +++
+ .gitignore                             |  13 ++++
  app/api/persistence/[...path]/route.ts |  15 ++++
- components/access-code-guard.tsx       |  45 ++++++------
+ components/access-code-guard.tsx       |  91 ++++++++++++++++++------
  instrumentation.ts                     |  31 +++++++++
  package.json                           |   6 +-
  pnpm-lock.yaml                         | 122 ++++++++++++++++++++++++++++-----
- 6 files changed, 191 insertions(+), 38 deletions(-)
+ 6 files changed, 240 insertions(+), 38 deletions(-)
 ```
 
 ---
@@ -44,15 +44,28 @@ configured.
 **Merge risk: low to moderate.** A small, clearly delimited block; an upstream refactor of the
 access decision would need it moved, not rewritten.
 
-### 3. `components/access-code-guard.tsx` — the Level-1 fix
+### 3. `components/access-code-guard.tsx` — the Level-1 fix, and the sign-in redirect
 
-Holds children until the access gate resolves. Opening a classroom link while unauthenticated
-showed `DocumentStore HTTP request failed with status 401` and needed a manual Retry, because the
-page issued its data requests before any cookie existed.
+Two changes live here.
 
-Carried over from Level 1, where it was approved by the project owner.
+The first is carried over from Level 1, where it was approved by the project owner: hold the
+children until the access gate resolves. Opening a classroom link while unauthenticated showed
+`DocumentStore HTTP request failed with status 401` and needed a manual Retry, because the page
+issued its data requests before any cookie existed.
 
-**Merge risk: low.** One component, behaviour unchanged when no code is set.
+The second was found by the project owner on 16 October, on the deployed site. The root page is
+OpenMAIC's workspace; it asks for the course list; with accounts in place that request is answered
+401, and a visitor with no account was left reading *"Persistence is unavailable. Saved classrooms
+could not be loaded."* That reads as a broken deployment rather than as "please sign in". At Level 1
+the shared access code caught such a visitor first, so the gap only appeared once the code was
+retired. The guard now asks `/api/level2/me` once per navigation and sends an unauthenticated
+visitor to `/platform/login`. Children are held back while the session is unknown and while the
+redirect is in flight, so nothing issues a request that must 401. A **network failure is treated as
+"render anyway", not as "signed out"**, so a dropped request never bounces someone who is signed in.
+
+Both behaviours are inert when Supabase is not configured, so Level 1 is untouched.
+
+**Merge risk: low.** One component; no upstream behaviour changes when accounts are off.
 
 ### 4. `.gitignore` — admit the documentation
 
