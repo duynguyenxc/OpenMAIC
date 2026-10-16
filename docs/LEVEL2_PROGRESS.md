@@ -168,3 +168,26 @@ features OpenMAIC relies on (advisory locks, prepared statements).
 **OpenMAIC migrates lazily**, on the first request that touches persistence — not at start-up. With
 the anonymous fallback off, that first request must be authenticated, so the schema appears only
 after a real sign-in.
+
+---
+
+## Database access and local copies (added 2026-10-16)
+
+The live database is Supabase, for two structural reasons: a Vercel staging deployment cannot reach
+a laptop, and `user_profiles.auth_user_id` references Supabase's own `auth.users`. Everything is
+copied to this machine anyway.
+
+- [x] `scripts/level2-db-backup.sh` — full dump of `public` **and** `auth` into `db/backups/`,
+      keeping the ten most recent. Gitignored: the dumps contain password hashes.
+- [x] `scripts/level2-db-mirror.sh` — restores the newest dump into a local `openmaic_mirror`
+      database. Verified: 21 public tables, 27 auth tables, 6 profiles, 6 auth users.
+- [x] `scripts/level2-db-viewer.sh` — Adminer in a container at `localhost:8080`, nothing installed.
+      Connected and confirmed against the live database.
+- [x] `openmaic_viewer` read-only role for the mirror; verified it can read every table and write
+      none.
+- [x] `docs/LEVEL2_DATABASE_ACCESS.md`
+
+Two traps worth keeping: Adminer must use the **pooler** host with the `postgres.<ref>` username,
+because `db.<ref>.supabase.co` resolves only over IPv6; and Adminer refuses the local PostgreSQL
+because it trusts any password over TCP, so the mirror is read with `psql` instead. Changing
+`pg_hba.conf` was rejected deliberately — the realist-synthesis project uses the same server.

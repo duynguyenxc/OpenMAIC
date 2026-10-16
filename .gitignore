@@ -97,3 +97,6 @@ e2e/screenshots/
 # local e2e screenshots for #619 review
 e2e/__screenshots-619/
 /.playwright-mcp/
+
+# Level 2 database dumps contain password hashes; never commit them
+db/backups/
