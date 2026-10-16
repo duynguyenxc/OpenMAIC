@@ -109,11 +109,11 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 ## K. Documentation
 
-- [ ] `docs/ADMIN_MANUAL.md`
-- [ ] `docs/INSTRUCTOR_MANUAL.md`
-- [ ] `docs/STUDENT_MANUAL.md`
+- [x] `docs/ADMIN_MANUAL.md`
+- [x] `docs/INSTRUCTOR_MANUAL.md`
+- [x] `docs/STUDENT_MANUAL.md`
 - [x] `docs/LEVEL2_DATABASE_SCHEMA.md` — ER diagram, keys, links to OpenMAIC storage
-- [ ] `docs/LEVEL2_SECURITY_MODEL.md`
+- [x] `docs/LEVEL2_SECURITY_MODEL.md`
 - [ ] Screenshots from the actual implementation
 
 ## L. Deployment
@@ -237,3 +237,44 @@ appear, and the untouched `payload` travels alongside so nothing is lost in the 
 `require*` helper returns early for ADMIN — so "ADMIN can inspect all course results", "assign
 instructor", "enroll student" need no separate admin endpoints. Student self-promotion, cross-course
 reads and cross-course student lists were already refused.
+
+---
+
+## Audit against the professor's own 22-item checklist (2026-10-16)
+
+Checked against the list in the instruction, not against this tracker, so the criteria are his.
+
+| # | Criterion | Status |
+|---|---|---|
+| 1 | Individual login works | ✅ browser-tested |
+| 2–4 | ADMIN / INSTRUCTOR / STUDENT roles work | ✅ each dashboard and API tested |
+| 5 | Multiple instructors can create different courses | ✅ Course A and Course B, different owners |
+| 6 | Instructor cannot modify unrelated courses | ✅ 403 |
+| 7 | Instructor can enrol selected students | ✅ API and UI |
+| 8 | Student sees only enrolled courses | ✅ student 3 sees Course B only |
+| 9 | Student cannot modify course content | ✅ 403 |
+| 10 | Student identity is server-authenticated | ✅ `learnerKey = user:<auth_user_id>` |
+| 11 | Student cannot impersonate another learner | ✅ 403 FORBIDDEN_LEARNER on an otherwise identical request |
+| 12 | Student interaction data remain separate | ✅ each has their own, and the two account for every session |
+| 13 | Instructor can inspect enrolled students individually | ✅ `/results?email=` |
+| 14 | Instructor can retrieve quiz/chat/PBL records | ⚠️ **chat proven; quiz and PBL unproven** — see below |
+| 15 | Instructor can export their course data | ✅ CSV and JSON |
+| 16 | Administrator sees all courses | ✅ |
+| 17 | Administrator manages instructors/students | ✅ role, status, approval |
+| 18 | API authorization tests pass | ✅ 41 passed, 0 failed |
+| 19 | **Level-1 learning features continue working** | ✅ **verified: a course was generated while signed in as an instructor** |
+| 20–22 | Admin / Instructor / Student manuals | ✅ |
+
+**On 19.** This was unverified until now, and it was the largest regression risk in the whole level:
+if replacing the identity source had broken generation, everything else would have been beside the
+point. Signed in as instructor1, a course was generated end to end through the normal OpenMAIC flow.
+It produced its AI personas and scenes, and `stage_meta.owner_id` came out as
+`user:e7edcbbc-…`, which is exactly instructor1's `auth_user_id` — so the identity chain holds
+through the whole generation pipeline, and the course was bound to its instructor automatically.
+
+**On 14.** The retrieval is kind-agnostic: it reads `runtime_sessions.kind` and the records beneath,
+whatever kind they are. Chat is proven end to end. No quiz or PBL record has ever been produced in
+this deployment — the only payload kinds observed are `chat_message` and `chat_session_state`, and
+the course generated for this test produced no quiz either. That half of the criterion therefore
+rests on the design rather than on a measurement, and is listed as an unresolved issue rather than
+claimed.
