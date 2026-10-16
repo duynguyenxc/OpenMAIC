@@ -53,17 +53,28 @@ export function AccessCodeGuard({ children }: { children: ReactNode }) {
   // for. Without this, opening the site unauthenticated showed OpenMAIC's
   // workspace and then "Persistence is unavailable", which looks like a broken
   // deployment rather than a sign-in prompt.
+  // Which path the answer in `signedIn` was obtained for. A "signed out"
+  // answer from the previous page must not be acted on here: signing in
+  // navigates away from /platform/login, and bouncing on that stale answer
+  // sent the visitor straight back to a blank sign-in form, so the first
+  // attempt always appeared to do nothing.
+  const [verifiedPath, setVerifiedPath] = useState<string | null>(null);
+
   useEffect(() => {
     if (!ACCOUNTS_ENABLED) return;
     let cancelled = false;
     fetch('/api/level2/me', { credentials: 'same-origin' })
       .then((res) => {
-        if (!cancelled) setSignedIn(res.ok);
+        if (cancelled) return;
+        setSignedIn(res.ok);
+        setVerifiedPath(pathname ?? null);
       })
       .catch(() => {
         // A network failure is not proof of being signed out; render rather
         // than bounce someone to sign-in over a dropped request.
-        if (!cancelled) setSignedIn(true);
+        if (cancelled) return;
+        setSignedIn(true);
+        setVerifiedPath(pathname ?? null);
       });
     return () => {
       cancelled = true;
@@ -71,12 +82,13 @@ export function AccessCodeGuard({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   const isPublicPath = PUBLIC_PATHS.some((path) => pathname?.startsWith(path));
+  const verifiedHere = verifiedPath === (pathname ?? null);
 
   useEffect(() => {
-    if (ACCOUNTS_ENABLED && signedIn === false && !isPublicPath) {
+    if (ACCOUNTS_ENABLED && signedIn === false && verifiedHere && !isPublicPath) {
       router.replace('/platform/login');
     }
-  }, [signedIn, isPublicPath, router]);
+  }, [signedIn, verifiedHere, isPublicPath, router]);
 
   const needsAuth = !status.loading && status.enabled && !status.authenticated;
 
