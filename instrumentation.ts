@@ -61,6 +61,12 @@ export async function register(): Promise<void> {
       anonymousFallback: false,
     });
     console.info('[level2] Supabase account identity registered; anonymous fallback disabled');
+
+    // Course creation: refuse students, and make the creating instructor the
+    // OWNER inside OpenMAIC's own create transaction.
+    const { configurePersistenceHooks } = await import('@/lib/server/persistence-hooks');
+    const { level2PersistenceHooks } = await import('@/lib/level2/persistence-hooks');
+    configurePersistenceHooks(level2PersistenceHooks);
   }
 
   const { warnAboutOwnerIdentityConfiguration } = await import('@/lib/server/identity/registry');

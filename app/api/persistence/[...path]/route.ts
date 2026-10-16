@@ -33,6 +33,7 @@ import {
   ownerRetiredResponse,
   retiredCredentialCookies,
 } from '@/lib/persistence/owner-merges';
+import { courseAuthorizationEnabled } from '@/lib/level2/authorization';
 import { guardedServerRuntimeStore } from '@/lib/persistence/runtime-tombstone-guard';
 import {
   getServerPersistenceProvider,
@@ -551,6 +552,20 @@ async function handlePersistenceRequestInner(
               .then((result) => result.rows.length > 0),
           (stageId) => readStageMeta(queryable, stageId),
         );
+      }
+
+      // Level 2: a course read must be authorized, not merely addressed.
+      //
+      // Upstream allows a read to any valid owner that holds the stage id
+      // ("course reads are capability-by-id"), which the Level-2 instruction
+      // forbids once accounts exist: "Do NOT use knowledge of a course ID
+      // alone as sufficient authorization." The decision itself lives in
+      // lib/level2/authorization.ts; this is only the point where it is
+      // consulted. It is a no-op when Level 2 is not configured, so the
+      // Level-1 pilot keeps its original behaviour.
+      if (access === 'allow' && action.kind === 'read' && courseAuthorizationEnabled()) {
+        const { mayReadCourse } = await import('@/lib/level2/authorization');
+        if (!(await mayReadCourse(ownerId, action.stageId))) access = 'forbid';
       }
 
       const admission: AssetAdmission = {};

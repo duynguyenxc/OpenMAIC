@@ -45,12 +45,13 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
       DRAFT / PUBLISHED / ARCHIVED — referencing the OpenMAIC stage, not duplicating it
 - [x] `course_instructors` (+ partial unique index: exactly one OWNER per course)
 - [x] `enrollments` (course_id, student_id, status, enrolled_at, enrolled_by)
-- [ ] Central authorization helpers: `requireAuthenticatedUser()`, `requireAdmin()`,
-      `requireCourseInstructor()`, `requireCourseEditor()`, `requireCourseEnrollment()`
+- [x] Central authorization helpers in `lib/level2/authorization.ts`: `requireAuthenticatedUser()`,
+      `requireAdmin()`, `requireCourseInstructor()`, `requireCourseEditor()`, `requireCourseOwner()`,
+      `requireCourseEnrollment()`
 - [ ] Every sensitive route uses them — UI hiding is not security
-- [ ] Student read requires: authenticated AND role STUDENT AND active enrollment AND course published
-- [ ] **Course id alone is no longer sufficient authorization** *(audit §6: today it is)*
-- [ ] Unauthorized writes return 403
+- [x] Student read requires: authenticated AND active enrolment AND course PUBLISHED *(all four cases tested)*
+- [x] **Course id alone is no longer sufficient authorization** — instructor2 and an unenrolled student now get 403 where both previously got 200
+- [x] Unauthorized writes return 403 *(storage, plus CREATE_REFUSED for students)*
 - [—] Student cannot modify course document / slides / quizzes / PBL / prompts / agents
       *(storage already refuses non-owners — audit §6)*
 
@@ -81,7 +82,7 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 ## H. Account provisioning
 
-- [ ] Admin-created accounts, or self-registration held at PENDING until approved
+- [~] Self-registration held at PENDING implemented in the auth method; admin approval UI still to build
 - [ ] No unrestricted public instructor registration
 
 ## I. Course duplication (prepares Level 3)
