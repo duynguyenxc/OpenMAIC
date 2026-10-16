@@ -98,14 +98,14 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 ## J. Testing — *"Do not rely only on browser testing. Test APIs directly."*
 
 - [x] Test accounts: admin, instructor1/2, student1/2/3 *(created; passwords in gitignored .env.level2-test-accounts)*
-- [ ] Course A (Instructor 1 → Students 1,2) · Course B (Instructor 2 → Student 3)
-- [ ] Authorization matrix for Admin, Instructor 1/2, Student 1/3
-- [ ] Direct API attacks as Student 1: edit/delete Course A · edit/read Course B ·
-      read Student 2 and 3 runtime · submit runtime as Student 2 — each must be 401/403
-- [ ] Automated authorization tests
+- [x] Course A (Instructor 1 → Students 1,2) · Course B (Instructor 2 → Student 3) *(built by the test itself, fresh each run)*
+- [x] Authorization matrix for Admin, Instructor 1/2, Student 1/3
+- [x] Direct API attacks as Student 1 — each refused with 401 or 403
+- [x] Automated authorization tests — `scripts/level2-security-tests.mjs`, **41 passed, 0 failed**
 - [x] Co-instructor: added as EDITOR → gains read, student list and course listing; cannot do
       OWNER-only work; removed → both 403 again on the very next request
-- [ ] Two students in one course: runtime records provably separate across chat, quiz, PBL, progress
+- [x] Two students in one course: each has their own runtime, and the two account for every
+      session in the course — nothing leaked across, nothing double-counted
 
 ## K. Documentation
 
