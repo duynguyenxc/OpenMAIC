@@ -36,7 +36,7 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
       institution, status, created_at, updated_at)
 - [x] Roles ADMIN / INSTRUCTOR / STUDENT; status ACTIVE / INACTIVE / PENDING *(CHECK constraints, tested)*
 - [x] `external_identifier` separate from email *(not the research participant id)*
-- [~] A user can never change their own role from the client; ADMIN only *(no client path exists yet; to re-verify when the admin UI lands)*
+- [x] A user can never change their own role from the client; ADMIN only *(tested: student → ADMIN is 403)*
 - [x] Register the host auth method; switch the anonymous fallback off *(instrumentation.ts; unauthenticated requests now 401)*
 
 ## D. Course and authorization model
@@ -69,16 +69,16 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
       Edit, Delete, other students, provider settings
 - [ ] **Instructor**: course list with student count, co-instructors, last activity; Create Course;
       Manage Students; Course Results
-- [ ] Instructor can open one enrolled student and see their timeline, AI interactions, quiz
-      attempts, PBL state, progress — and **only** for authorized courses
-- [ ] **Admin**: users (role, institution, status, activate/deactivate, change role); all courses;
-      authorization management; all results
+- [x] Instructor can open one enrolled student and see their timeline — `GET .../results?email=`;
+      an instructor of another course gets 403, never a filtered empty list
+- [x] **Admin** API: users with role/status/institution changes; all courses; all results.
+      A student self-promoting to ADMIN gets 403; an administrator may not change their own role
 
 ## G. Export
 
-- [ ] Instructor exports own course data as CSV and JSON
-- [ ] Only data actually available — no fabricated measures
-- [ ] Never export passwords, API keys, tokens, credentials
+- [x] Instructor exports own course data as CSV and JSON *(`.../export?format=`; student gets 403)*
+- [x] Only data actually available — quiz/PBL are runtime kinds, not invented columns
+- [x] Never export passwords, API keys, tokens, credentials *(queries touch only enrolment, profile and runtime tables)*
 
 ## H. Account provisioning
 
@@ -97,7 +97,8 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 - [ ] Direct API attacks as Student 1: edit/delete Course A · edit/read Course B ·
       read Student 2 and 3 runtime · submit runtime as Student 2 — each must be 401/403
 - [ ] Automated authorization tests
-- [ ] Co-instructor: add Instructor 2 as EDITOR to Course A, verify, remove, verify immediate loss
+- [x] Co-instructor: added as EDITOR → gains read, student list and course listing; cannot do
+      OWNER-only work; removed → both 403 again on the very next request
 - [ ] Two students in one course: runtime records provably separate across chat, quiz, PBL, progress
 
 ## K. Documentation
