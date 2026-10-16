@@ -65,13 +65,14 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 ## F. Dashboards
 
-- [ ] **Student**: My Courses; open classroom; must not see New Course, Generate, Pro Workbench,
-      Edit, Delete, other students, provider settings
-- [ ] **Instructor**: course list with student count, co-instructors, last activity; Create Course;
-      Manage Students; Course Results
+- [x] **Student**: My Courses with title, instructor, status, last activity and Open course.
+      None of the forbidden items is rendered, and each is refused server-side as well
+- [x] **Instructor**: course list with student count, co-instructors and last activity; the four
+      actions Edit / Open classroom / Manage students / Results; publish and unpublish
 - [x] Instructor can open one enrolled student and see their timeline — `GET .../results?email=`;
       an instructor of another course gets 403, never a filtered empty list
-- [x] **Admin** API: users with role/status/institution changes; all courses; all results.
+- [x] **Admin** dashboard and API: pending approvals, users with role/status changes, all courses
+      with owner, co-instructors, student count and status.
       A student self-promoting to ADMIN gets 403; an administrator may not change their own role
 
 ## G. Export
