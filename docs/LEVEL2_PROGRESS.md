@@ -31,13 +31,13 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 ## C. Authentication and users
 
-- [~] Individual authentication (Supabase Auth) — infrastructure ready; auth method not yet written
+- [x] Individual authentication (Supabase Auth) — `lib/level2/session.ts`, verified end to end
 - [x] `user_profiles` (id, auth_user_id, email, display_name, role, external_identifier,
       institution, status, created_at, updated_at)
 - [x] Roles ADMIN / INSTRUCTOR / STUDENT; status ACTIVE / INACTIVE / PENDING *(CHECK constraints, tested)*
 - [x] `external_identifier` separate from email *(not the research participant id)*
-- [ ] A user can never change their own role from the client; ADMIN only
-- [ ] Register the host auth method; switch the anonymous fallback off
+- [~] A user can never change their own role from the client; ADMIN only *(no client path exists yet; to re-verify when the admin UI lands)*
+- [x] Register the host auth method; switch the anonymous fallback off *(instrumentation.ts; unauthenticated requests now 401)*
 
 ## D. Course and authorization model
 
@@ -58,7 +58,7 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 - [—] Server derives learner identity; request body/path not trusted *(audit §4)*
 - [—] Browser cannot address another learner's partition *(403 FORBIDDEN_LEARNER — audit §4)*
-- [ ] Learner identity is an **authenticated account**, not an anonymous browser cookie
+- [x] Learner identity is an **authenticated account** — `learnerKey = user:<auth_user_id>`, verified
 - [—] Reuse OpenMAIC RuntimeStore for chat / quiz / PBL / progress — no competing tables *(audit §5)*
 - [—] Every runtime record associable with course · student · activity · type · timestamp *(audit §5)*
 
@@ -90,7 +90,7 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 ## J. Testing — *"Do not rely only on browser testing. Test APIs directly."*
 
-- [ ] Test accounts: admin, instructor1/2, student1/2/3
+- [x] Test accounts: admin, instructor1/2, student1/2/3 *(created; passwords in gitignored .env.level2-test-accounts)*
 - [ ] Course A (Instructor 1 → Students 1,2) · Course B (Instructor 2 → Student 3)
 - [ ] Authorization matrix for Admin, Instructor 1/2, Student 1/3
 - [ ] Direct API attacks as Student 1: edit/delete Course A · edit/read Course B ·
@@ -143,3 +143,26 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 Turning authentication on makes the current public classroom link unusable without an account. The
 Level-1 deployment must therefore keep running unchanged, which the instruction already requires.
+
+---
+
+## Operational notes discovered while building
+
+**Supabase signs tokens with ES256, not HS256.** The project publishes its public key at
+`/auth/v1/.well-known/jwks.json`, so the legacy `SUPABASE_JWT_SECRET` cannot verify an access
+token. `auth.getClaims()` is used instead: it caches the key set and verifies locally, so a request
+costs no round trip to the Auth server.
+
+**`sslmode=require` alone fails against Supabase** with node-postgres 8.22:
+`SELF_SIGNED_CERT_IN_CHAIN`. The connection string needs `&uselibpqcompat=true`, the
+forward-compatible spelling node-postgres itself recommends. Encryption was confirmed afterwards
+through `pg_stat_ssl`, so this restores libpq semantics rather than disabling TLS. *For production,
+pinning Supabase's CA with `sslrootcert` would be stronger and should be revisited before any real
+student data is stored.*
+
+**Use port 5432, not 6543.** The 6543 pooler is transaction-mode, which breaks the session-scoped
+features OpenMAIC relies on (advisory locks, prepared statements).
+
+**OpenMAIC migrates lazily**, on the first request that touches persistence — not at start-up. With
+the anonymous fallback off, that first request must be authenticated, so the schema appears only
+after a real sign-in.

@@ -38,6 +38,31 @@ export async function register(): Promise<void> {
   // mode without ACCESS_CODE serves one library to whoever can reach the
   // server. Its warning names ACCESS_CODE itself, so the generic unset-code
   // warning is skipped then: one warning, not two.
+  // Level 2: individual accounts.
+  //
+  // Registering one owner auth method converts the platform from
+  // one-owner-per-browser to one-owner-per-account. Every owner-scoped
+  // document, asset and runtime partition is keyed by whatever identity
+  // resolves to, so the isolation @openmaic/storage already enforces becomes
+  // per-student isolation without a single route being edited. The anonymous
+  // fallback is switched off at the same time: once accounts exist, a request
+  // without one must be refused rather than silently become a fresh owner.
+  //
+  // Conditional on purpose. Without Supabase configured this registers
+  // nothing and the deployment behaves exactly as Level 1 did, so the same
+  // build serves both the Level-1 pilot and the Level-2 platform.
+  // See docs/LEVEL2_ARCHITECTURE_AUDIT.md section 3.
+  const { supabaseAuthConfigured } = await import('@/lib/level2/session');
+  if (supabaseAuthConfigured()) {
+    const { configureOwnerAuthentication } = await import('@/lib/server/identity');
+    const { supabaseOwnerAuthMethod } = await import('@/lib/level2/auth-method');
+    configureOwnerAuthentication({
+      methods: [supabaseOwnerAuthMethod()],
+      anonymousFallback: false,
+    });
+    console.info('[level2] Supabase account identity registered; anonymous fallback disabled');
+  }
+
   const { warnAboutOwnerIdentityConfiguration } = await import('@/lib/server/identity/registry');
   if (!warnAboutOwnerIdentityConfiguration()) {
     const { warnIfAccessCodeIsUnset } = await import('@/lib/server/access-code-warning');
