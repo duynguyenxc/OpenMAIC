@@ -32,19 +32,19 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 ## C. Authentication and users
 
 - [~] Individual authentication (Supabase Auth) — infrastructure ready; auth method not yet written
-- [ ] `user_profiles` (id, auth_user_id, email, display_name, role, external_identifier,
+- [x] `user_profiles` (id, auth_user_id, email, display_name, role, external_identifier,
       institution, status, created_at, updated_at)
-- [ ] Roles ADMIN / INSTRUCTOR / STUDENT; status ACTIVE / INACTIVE / PENDING
-- [ ] `student_identifier` separate from email *(not the research participant id)*
+- [x] Roles ADMIN / INSTRUCTOR / STUDENT; status ACTIVE / INACTIVE / PENDING *(CHECK constraints, tested)*
+- [x] `external_identifier` separate from email *(not the research participant id)*
 - [ ] A user can never change their own role from the client; ADMIN only
 - [ ] Register the host auth method; switch the anonymous fallback off
 
 ## D. Course and authorization model
 
-- [ ] `courses` (id, openmaic_stage_id, title, owner_instructor_id, status, timestamps);
+- [x] `courses` (id, openmaic_stage_id, title, owner_instructor_id, status, timestamps);
       DRAFT / PUBLISHED / ARCHIVED — referencing the OpenMAIC stage, not duplicating it
-- [ ] `course_instructors` (course_id, instructor_id, permission OWNER/EDITOR/VIEWER, added_by)
-- [ ] `enrollments` (course_id, student_id, status ACTIVE/INACTIVE/COMPLETED, enrolled_at, enrolled_by)
+- [x] `course_instructors` (+ partial unique index: exactly one OWNER per course)
+- [x] `enrollments` (course_id, student_id, status, enrolled_at, enrolled_by)
 - [ ] Central authorization helpers: `requireAuthenticatedUser()`, `requireAdmin()`,
       `requireCourseInstructor()`, `requireCourseEditor()`, `requireCourseEnrollment()`
 - [ ] Every sensitive route uses them — UI hiding is not security
@@ -104,7 +104,7 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 - [ ] `docs/ADMIN_MANUAL.md`
 - [ ] `docs/INSTRUCTOR_MANUAL.md`
 - [ ] `docs/STUDENT_MANUAL.md`
-- [ ] `docs/LEVEL2_DATABASE_SCHEMA.md` — ER diagram, keys, links to OpenMAIC storage
+- [x] `docs/LEVEL2_DATABASE_SCHEMA.md` — ER diagram, keys, links to OpenMAIC storage
 - [ ] `docs/LEVEL2_SECURITY_MODEL.md`
 - [ ] Screenshots from the actual implementation
 
