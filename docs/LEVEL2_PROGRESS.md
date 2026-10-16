@@ -31,7 +31,7 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 ## C. Authentication and users
 
-- [ ] Individual authentication (Supabase Auth preferred) — **blocked on database decision, audit §9**
+- [~] Individual authentication (Supabase Auth) — infrastructure ready; auth method not yet written
 - [ ] `user_profiles` (id, auth_user_id, email, display_name, role, external_identifier,
       institution, status, created_at, updated_at)
 - [ ] Roles ADMIN / INSTRUCTOR / STUDENT; status ACTIVE / INACTIVE / PENDING
@@ -131,10 +131,13 @@ Branch `feature/level2-rbac` · baseline tag `level1-classroom-pilot` · audit:
 
 ## Open decisions
 
-1. **Database** — one database (move `DATABASE_URL` to Supabase) or two (Neon + Supabase auth)?
-   Audit §9 recommends one, because `onCreate` runs inside OpenMAIC's transaction and cannot be
-   atomic across two databases. **Awaiting owner decision.**
-2. **Staging project** — a second Vercel project is required so the Level-1 URL keeps working.
+1. ~~**Database**~~ — **decided 2026-10-16: one database.** Supabase project `supabase-red-kite`
+   provisioned through the Vercel Marketplace (free plan). Postgres 17.11; `public` empty, ready
+   for OpenMAIC's own migrations; `auth` schema present with 27 tables, so Supabase Auth is
+   available as the instruction prefers. Rationale in audit §9.
+2. ~~**Staging project**~~ — **created: `openmaic-level2`**, a second Vercel project. Supabase is
+   connected to it, not to the Level-1 project. Verified after provisioning that the Level-1
+   deployment still serves 200 and that no Supabase variable reached its environment.
 
 ## Known consequence to communicate
 
