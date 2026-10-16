@@ -5,11 +5,18 @@ Duy Nguyen · 2026-10-16
 
 You do not need to install anything. You need a web browser and this page.
 
-**Open this link:** https://openmaic-level2.vercel.app
+**Open this link:** https://openmaic-level2.vercel.app/platform
 
 The first thing you see is a **Sign in** box. That is correct. There is no public sign-up, and there
 is no shared code to type any more. Every person signs in with their own account, and the account
 decides what they are allowed to see. The accounts you need are listed below.
+
+*Use the `/platform` link above, not the bare address.* The bare address opens OpenMAIC's own
+workspace — the screen where a teacher builds a lesson by asking the AI for one. If you are not
+signed in, it sends you to the sign-in box; if you are already signed in from an earlier visit, it
+lets you straight through, which can look as though nothing happened. `/platform` always takes you
+to the right place for whoever you are. To see the site as a brand-new visitor does, open it in a
+private window (Chrome: ⌘⇧N).
 
 ---
 
@@ -57,7 +64,8 @@ something different happens, that is a finding — please tell Duy.
 
 ### Step 1 — You are not let in without an account
 
-1. Open https://openmaic-level2.vercel.app
+1. Open https://openmaic-level2.vercel.app/platform in a **private window** (Chrome: ⌘⇧N), so no
+   earlier visit is remembered.
 
 **Should happen:** you land on the **Sign in** box, not on a classroom and not on an error.
 
