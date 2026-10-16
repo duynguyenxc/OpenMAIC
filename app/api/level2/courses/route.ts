@@ -27,7 +27,16 @@ const BASE = `
          (SELECT count(*) FROM enrollments e
            WHERE e.course_id = c.id AND e.status = 'ACTIVE')      AS "studentCount",
          (SELECT count(*) FROM course_instructors ci2
-           WHERE ci2.course_id = c.id AND ci2.permission <> 'OWNER') AS "coInstructorCount"
+           WHERE ci2.course_id = c.id AND ci2.permission <> 'OWNER') AS "coInstructorCount",
+         (SELECT array_agg(up2.email ORDER BY up2.email)
+            FROM course_instructors ci3
+            JOIN user_profiles up2 ON up2.id = ci3.instructor_id
+           WHERE ci3.course_id = c.id AND ci3.permission <> 'OWNER')  AS "coInstructors",
+         -- "last activity" in the instruction's course list: the most recent
+         -- moment any enrolled learner touched this course's runtime.
+         (SELECT max(GREATEST(s.updated_at, s.created_at))
+            FROM runtime_sessions s
+           WHERE s.stage_id = c.openmaic_stage_id)                    AS "lastActivityAt"
     FROM courses c
     JOIN user_profiles owner ON owner.id = c.owner_instructor_id`;
 

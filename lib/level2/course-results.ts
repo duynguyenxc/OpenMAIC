@@ -54,9 +54,17 @@ export async function courseResults(stageId: string): Promise<StudentSummary[]> 
 
 export interface TrajectoryRow {
   email: string;
+  studentInternalId: string;
   externalIdentifier: string | null;
   sessionKind: string;
-  sceneId: string | null;
+  /** `payload.kind`, e.g. chat_message or chat_session_state. */
+  activityType: string | null;
+  /** `payload.sceneId` when the record carries one, else the record's scene. */
+  activityId: string | null;
+  /** `payload.content` when `payload.role` is 'user'. */
+  learnerInput: string | null;
+  /** `payload.content` when `payload.role` is 'assistant'. */
+  agentResponse: string | null;
   seq: number | null;
   createdAt: string | null;
   payload: unknown;
@@ -71,9 +79,15 @@ export async function courseTrajectory(stageId: string, email?: string): Promise
   const pool = await level2Pool();
   const { rows } = await pool.query(
     `SELECT up.email,
+            up.id                  AS "studentInternalId",
             up.external_identifier AS "externalIdentifier",
             s.kind                 AS "sessionKind",
-            rec.scene_id           AS "sceneId",
+            rec.data::jsonb -> 'payload' ->> 'kind'    AS "activityType",
+            COALESCE(rec.data::jsonb -> 'payload' ->> 'sceneId', rec.scene_id) AS "activityId",
+            CASE WHEN rec.data::jsonb -> 'payload' ->> 'role' = 'user'
+                 THEN rec.data::jsonb -> 'payload' ->> 'content' END AS "learnerInput",
+            CASE WHEN rec.data::jsonb -> 'payload' ->> 'role' = 'assistant'
+                 THEN rec.data::jsonb -> 'payload' ->> 'content' END AS "agentResponse",
             rec.seq,
             rec.created_at         AS "createdAt",
             rec.data               AS payload

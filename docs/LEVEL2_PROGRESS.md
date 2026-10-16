@@ -191,3 +191,43 @@ Two traps worth keeping: Adminer must use the **pooler** host with the `postgres
 because `db.<ref>.supabase.co` resolves only over IPv6; and Adminer refuses the local PostgreSQL
 because it trusts any password over TCP, so the mirror is read with `psql` instead. Changing
 `pg_hba.conf` was rejected deliberately — the realist-synthesis project uses the same server.
+
+---
+
+## Audit against the instruction before building the UI (2026-10-16)
+
+Re-read the dashboard sections line by line and compared them with what had been built. Three
+divergences were found and corrected before any interface work started.
+
+**1. The course list was missing "last activity".** The instruction lists it for the instructor
+dashboard. Added as the most recent moment any enrolled learner touched that course's runtime.
+
+**2. Co-instructors were only a count.** The instruction says to show co-instructors; the list now
+carries their emails as well as the count.
+
+**3. The export did not use the field names the instruction names.** It had a single `payload`
+blob. Corrected to the instruction's own list and order, populated from what the records actually
+contain — verified against a real runtime record rather than assumed:
+
+| Instruction field | Source | Verified |
+|---|---|---|
+| `course_id`, `course_title` | course row | ✅ |
+| `student_identifier` | `user_profiles.external_identifier` | ✅ |
+| `student_internal_id` | `user_profiles.id` | ✅ |
+| `activity_id` | `payload.sceneId`, else the record's scene | ✅ |
+| `activity_type` | `payload.kind` | ✅ `chat_message`, `chat_session_state` |
+| `timestamp`, `seq` | record | ✅ |
+| `learner_input` | `payload.content` where `payload.role = 'user'` | ✅ |
+| `agent_response` | `payload.content` where `payload.role = 'assistant'` | ✅ carries the real lecture text |
+| `quiz_item`, `quiz_response`, `quiz_score`, `PBL_event`, `progress_state` | — | **empty, deliberately** |
+
+The last row is the instruction's own rule applied honestly. No quiz or PBL record exists in this
+deployment: the only payload kinds observed are `chat_message` and `chat_session_state`. Any mapping
+would be guessed, and the instruction says *"Include only data actually available. Do not fabricate
+derived measures."* The columns are present so the export's shape will not change when such records
+appear, and the untouched `payload` travels alongside so nothing is lost in the meantime.
+
+**Checked and already correct:** an administrator reaches every course-scoped route, because each
+`require*` helper returns early for ADMIN — so "ADMIN can inspect all course results", "assign
+instructor", "enroll student" need no separate admin endpoints. Student self-promotion, cross-course
+reads and cross-course student lists were already refused.

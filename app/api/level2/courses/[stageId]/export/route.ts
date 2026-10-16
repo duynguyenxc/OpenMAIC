@@ -21,15 +21,40 @@ export const runtime = 'nodejs';
 
 type Params = { params: Promise<{ stageId: string }> };
 
+/**
+ * The field names the instruction suggests, in its order.
+ *
+ * Populated from what this deployment's runtime records actually contain:
+ * `activity_type` is `payload.kind`, and `learner_input` / `agent_response`
+ * are `payload.content` split by `payload.role`.
+ *
+ * `quiz_item`, `quiz_response`, `quiz_score`, `PBL_event` and
+ * `progress_state` are present as columns and left empty. No quiz or PBL
+ * record has been produced in this deployment yet — the only payload kinds
+ * observed are `chat_message` and `chat_session_state` — so any mapping would
+ * be guessed, and the instruction says plainly: "Include only data actually
+ * available. Do not fabricate derived measures." The columns stay so the
+ * shape does not change when such records appear; `payload` carries the
+ * untouched record meanwhile.
+ */
 const COLUMNS = [
   'course_id',
   'course_title',
   'student_identifier',
+  'student_internal_id',
   'student_email',
+  'activity_id',
+  'activity_type',
   'session_kind',
-  'scene_id',
   'seq',
   'timestamp',
+  'learner_input',
+  'agent_response',
+  'quiz_item',
+  'quiz_response',
+  'quiz_score',
+  'PBL_event',
+  'progress_state',
   'payload',
 ];
 
@@ -55,11 +80,21 @@ export function GET(req: Request, { params }: Params): Promise<Response> {
       course_id: stageId,
       course_title: title,
       student_identifier: event.externalIdentifier ?? '',
+      student_internal_id: event.studentInternalId,
       student_email: event.email,
+      activity_id: event.activityId ?? '',
+      activity_type: event.activityType ?? '',
       session_kind: event.sessionKind,
-      scene_id: event.sceneId ?? '',
       seq: event.seq ?? '',
       timestamp: event.createdAt ?? '',
+      learner_input: event.learnerInput ?? '',
+      agent_response: event.agentResponse ?? '',
+      // Not yet produced by this deployment; see the note on COLUMNS.
+      quiz_item: '',
+      quiz_response: '',
+      quiz_score: '',
+      PBL_event: '',
+      progress_state: '',
       payload: event.payload === null ? '' : JSON.stringify(event.payload),
     }));
 
