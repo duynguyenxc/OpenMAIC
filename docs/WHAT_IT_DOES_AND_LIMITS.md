@@ -119,6 +119,11 @@ for them and leaves those columns empty rather than inventing values.
   for research. Level 3 asks for this, and it should exist before any research data is collected.
 - **Course titles start as "Untitled course"** when a course is made by the AI generator. The
   teacher can rename it. This is untidy rather than harmful.
+- **A student can still reach OpenMAIC's own workspace** at the site's bare address and ask the AI
+  to build a lesson for themselves. Nothing of anyone else's is exposed — whatever they make is
+  their own — but it spends credit on the shared AI key, so a class of students could run the key
+  down. The instruction did not ask for this to be closed, and closing it would mean refusing a
+  screen OpenMAIC ships. It should be decided before a real class uses the platform.
 
 ### Practical limits
 
