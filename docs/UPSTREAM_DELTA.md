@@ -7,13 +7,14 @@ Nearly all of Level 2 is **new files**; the list below is everything that touche
 maintains.
 
 ```
- .gitignore                             |  13 ++++
+ .gitignore                             |  14 ++++
  app/api/persistence/[...path]/route.ts |  15 ++++
- components/access-code-guard.tsx       |  91 ++++++++++++++++++------
+ app/page.tsx                           |   6 ++
+ components/access-code-guard.tsx       | 103 ++++++++++++++++++++++------
  instrumentation.ts                     |  31 +++++++++
  package.json                           |   6 +-
  pnpm-lock.yaml                         | 122 ++++++++++++++++++++++++++++-----
- 6 files changed, 240 insertions(+), 38 deletions(-)
+ 7 files changed, 259 insertions(+), 38 deletions(-)
 ```
 
 ---
@@ -67,14 +68,28 @@ Both behaviours are inert when Supabase is not configured, so Level 1 is untouch
 
 **Merge risk: low.** One component; no upstream behaviour changes when accounts are off.
 
-### 4. `.gitignore` — admit the documentation
+### 4. `app/page.tsx` — a visible way into the platform
+
+Six lines: an import and a `<PlatformLink />` in the top-right pill, beside the language and theme
+buttons. The component itself is ours (`components/level2/platform-link.tsx`) and renders `null`
+when Supabase is not configured, so Level 1 shows nothing new.
+
+Found when the project owner opened the deployed link: the bare address is OpenMAIC's workspace, a
+chat box saying "No courses yet". Nothing on that screen mentions accounts, courses or classes, and
+nothing links to `/platform`. A reviewer handed the link had no way in short of typing the path by
+hand. Hiding the entrance behind a URL the reader has to know is not a documentation problem that
+the guide can fix.
+
+**Merge risk: low.** Two lines in one JSX block; the behaviour lives in our own component.
+
+### 5. `.gitignore` — admit the documentation
 
 Upstream ignores `/docs`, but the instruction names `docs/ADMIN_MANUAL.md`,
 `docs/LEVEL2_DATABASE_SCHEMA.md` and others by path. A negation admits exactly those.
 
 **Merge risk: none.**
 
-### 5. `package.json`, `pnpm-lock.yaml` — two dependencies
+### 6. `package.json`, `pnpm-lock.yaml` — two dependencies
 
 `@supabase/ssr` and `@supabase/supabase-js`, for reading the session server-side and signing in
 from the browser.
