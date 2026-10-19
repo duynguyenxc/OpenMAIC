@@ -265,7 +265,7 @@ Checked against the list in the instruction, not against this tracker, so the cr
 | 17 | Administrator manages instructors/students | ✅ role, status, approval |
 | 18 | API authorization tests pass | ✅ 41 passed, 0 failed |
 | 19 | **Level-1 learning features continue working** | ✅ **verified: a course was generated while signed in as an instructor** |
-| 20–22 | Admin / Instructor / Student manuals | ✅ |
+| 20–22 | Admin / Instructor / Student manuals | ⚠️ **written, but with no screenshots** — see below |
 
 **On 19.** This was unverified until now, and it was the largest regression risk in the whole level:
 if replacing the identity source had broken generation, everything else would have been beside the
@@ -280,3 +280,17 @@ this deployment — the only payload kinds observed are `chat_message` and `chat
 the course generated for this test produced no quiz either. That half of the criterion therefore
 rests on the design rather than on a measurement, and is listed as an unresolved issue rather than
 claimed.
+
+**On 20–22 (corrected 2026-10-19).** These were ticked as complete. The instruction says *"Use
+screenshots from the actual implementation."* The three manuals contain **zero** images, and
+`LEVEL2_DATABASE_SCHEMA.md` has no ER diagram although the instruction asks for one. The tick was
+too generous and is withdrawn until both exist.
+
+**Items the instruction asks for that this tracker never listed, found on 2026-10-19.** The
+22-item list is the professor's own success criteria, and passing it is not the same as having
+built what the document describes. A full audit against the prose — `docs/LEVEL2_UX_AUDIT.md` —
+found six capabilities named in the instruction and absent from the build: course **deletion**
+(no endpoint exists at all), **course creation** from the dashboard once an instructor owns one,
+**renaming** a course, the administrator's **AUTHORIZATION** group, and any interface for
+**co-instructors** (the API exists and is tested; nothing calls it). None of them weakens the
+authorization model; all of them are things a tester reaches for in the first five minutes.
