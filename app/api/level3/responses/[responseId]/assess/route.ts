@@ -12,6 +12,8 @@
 import { requireCourseInstructor } from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 import { assessResponse, loadRubric, scoresFor } from '@/lib/level3/assessment';
+import { contextAsText, gatherContext } from '@/lib/level3/knowledge';
+import { embedText } from '@/lib/level3/embeddings';
 import { apiError, json } from '@/lib/level2/route-helpers';
 import { withRequestOwner } from '@/lib/server/identity/with-owner';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
@@ -28,19 +30,27 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const pool = await level2Pool();
       const { rows } = await pool.query(
         `SELECT lr.id, lr.response_text AS "responseText", lr.activity_id AS "activityId",
-                lr.attempt_number AS "attemptNumber",
+                lr.attempt_number AS "attemptNumber", lr.learner_id AS "learnerId",
+                lr.course_id AS "courseUuid",
                 c.openmaic_stage_id AS "stageId", c.title AS "courseTitle",
-                ra.rubric_id AS "rubricId"
+                ra.rubric_id AS "rubricId",
+                ac.permitted_resources AS "permittedResources",
+                ac.prohibited_behavior AS "prohibitedBehavior",
+                ac.uncertainty_behavior AS "uncertaintyBehavior"
            FROM learner_responses lr
            JOIN courses c ON c.id = lr.course_id
            LEFT JOIN rubric_assignments ra
              ON ra.course_id = lr.course_id AND ra.activity_id = lr.activity_id
+           LEFT JOIN agent_configurations ac ON ac.id = c.agent_configuration_id
           WHERE lr.id = $1`,
         [responseId],
       );
       const response = rows[0] as
         | { id: string; responseText: string; activityId: string; attemptNumber: number;
-            stageId: string; courseTitle: string; rubricId: string | null }
+            learnerId: string; courseUuid: string;
+            stageId: string; courseTitle: string; rubricId: string | null;
+            permittedResources: string[] | null; prohibitedBehavior: string | null;
+            uncertaintyBehavior: string | null }
         | undefined;
       if (!response) return apiError(404, 'RESPONSE_NOT_FOUND', 'no such response', headers);
 
@@ -59,12 +69,32 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const { model, modelString, serverManaged } =
         await resolveModelFromRequest(req as never, body, 'level3-assessment');
 
+      // Level 3C: context comes through the KnowledgeProvider interface, and
+      // every passage handed to the model is recorded against this response.
+      // An agent configuration's permitted_resources is the bound, enforced
+      // here rather than asked for in a prompt.
+      const context = await gatherContext({
+        stageId: response.stageId,
+        query: response.responseText.slice(0, 500),
+        purpose: 'assessment',
+        permittedResources: response.permittedResources,
+        courseId: response.courseUuid,
+        learnerId: response.learnerId,
+        responseId: response.id,
+        embed: embedText,
+      });
+
       const outcome = await assessResponse({
         responseText: response.responseText,
         activityPrompt: typeof body.activityPrompt === 'string' ? body.activityPrompt : null,
         courseContext: response.courseTitle,
         referenceAnswer: typeof body.referenceAnswer === 'string' ? body.referenceAnswer : null,
         rubric, model, modelString, serverManaged,
+        knowledgeContext: contextAsText(context.passages) || null,
+        agentRules: {
+          prohibited: response.prohibitedBehavior,
+          uncertainty: response.uncertaintyBehavior,
+        },
       });
 
       const client = await pool.connect();
@@ -74,7 +104,10 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
           `INSERT INTO assessments (response_id, rubric_id, rubric_version, assessor_kind,
                                     model, prompt_version, raw_result)
            VALUES ($1, $2, $3, 'AI', $4, $5, $6) RETURNING id`,
-          [responseId, rubric.id, rubric.version, outcome.model, outcome.promptVersion, outcome.raw],
+          [responseId, rubric.id, rubric.version, outcome.model, outcome.promptVersion,
+           // The retrieval request id goes into the record, so "which
+           // resources were provided to the model" is one join away.
+           { ...(outcome.raw as Record<string, unknown>), retrievalRequestId: context.requestId }],
         );
         const assessmentId = (created[0] as { id: string }).id;
         for (const s of outcome.scores) {
@@ -95,6 +128,8 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
             scores: outcome.scores,
             feedbackSuggestions: outcome.feedbackSuggestions,
             parsed: outcome.scores.length > 0,
+            knowledge: { requestId: context.requestId, sources: context.sources,
+                         passages: context.passages.length },
             scoresNow: await scoresFor(responseId),
           },
           201,

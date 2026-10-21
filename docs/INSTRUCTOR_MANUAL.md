@@ -247,3 +247,48 @@ repeat itself.
 Every piece generated is recorded, whether the student saw it or not. A student asking for feedback
 themselves is recorded as shown; one you generate to look at is recorded as generated. A researcher
 can tell the difference, which matters when measuring whether feedback changed anything.
+
+---
+
+# Level 3C — knowledge sources and bounded agents
+
+The **Knowledge sources and agents** panel sits below assessment.
+
+## Making a source of knowledge
+
+Four kinds, and the kind decides how it is searched:
+
+| Kind | Searched how |
+|---|---|
+| `DOCUMENT_COLLECTION` | by keyword |
+| `VECTOR_INDEX` | **by meaning** — the text is embedded when you add it |
+| `KNOWLEDGE_GRAPH` | facts written as `subject \| predicate \| object`, matched at either end |
+| `STRUCTURED_DATA` | by keyword |
+
+Add content by pasting it. Blank lines separate chunks. For a vector index the panel tells you how
+many chunks were embedded — if that number is zero it says so, and the source is searched by
+keyword only. It will not pretend to understand text it never embedded.
+
+## Giving a course its sources
+
+Choose a course, a resource, and **a name of your own**: `authoritative`, `counterpoint`, `K1`,
+anything. The platform stores your label, uses it to order and to tag every passage, and never
+interprets it. A course can use several sources at once, and a lower priority number goes first.
+
+When an answer is assessed or feedback is generated, every attached source is asked for context,
+and every passage that came back is recorded — which source, which document, which chunk, what
+score.
+
+## Bounded agents
+
+An agent configuration says how an agent should behave: its role, its style, what it must not do,
+what to do when unsure — and **which resources it may consult**.
+
+That last one is not a request. An agent bounded to one resource consults one resource: the others
+are never asked, the model never sees them, and the record afterwards shows a single source. That
+is what makes "the same module under a bounded agent" a real experimental condition rather than a
+hopeful instruction in a prompt.
+
+Press **Use for the chosen course** to run a section under a configuration. Configurations are
+versioned: publish `1.1` rather than editing `1.0`, so a study that is running keeps the behaviour
+it started with.

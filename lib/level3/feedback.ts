@@ -90,6 +90,9 @@ export async function generateFeedback(input: {
   model: unknown;
   modelString: string;
   serverManaged?: boolean;
+  /** Level 3C: retrieved through the KnowledgeProvider interface. */
+  knowledgeContext?: string | null;
+  agentRules?: { prohibited?: string | null; style?: string | null } | null;
 }): Promise<GeneratedFeedback> {
   const byId = new Map(input.rubric.dimensions.map((d) => [d.dimensionId, d]));
   const weakest = [...input.scores]
@@ -105,10 +108,15 @@ export async function generateFeedback(input: {
     'Do not give the answer. Do not score anything. Do not praise emptily.',
     'Aim at the weakest part of what they actually wrote, and leave them',
     'something to do next. Two or three sentences at most.',
+    input.agentRules?.style ? `Write in this style: ${input.agentRules.style}` : '',
+    input.agentRules?.prohibited ? `You must not: ${input.agentRules.prohibited}` : '',
+    input.knowledgeContext
+      ? 'Reference material is provided. Point them towards it rather than reciting it, and do not invent material that is not there.'
+      : '',
     'Reply with JSON only, no prose and no code fences:',
     '{"kind":"HINT|SOCRATIC_QUESTION|MISCONCEPTION_PROMPT|REQUEST_FOR_EXPLANATION|EXAMPLE|REVIEW_SUGGESTION",',
     ' "content":"..."}',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   const prompt = [
     input.activityPrompt ? `TASK:\n${input.activityPrompt}` : '',
@@ -133,6 +141,7 @@ export async function generateFeedback(input: {
           .map((f) => `- ${f}`)
           .join('\n')}`
       : '',
+    input.knowledgeContext ? `REFERENCE MATERIAL:\n${input.knowledgeContext}` : '',
   ]
     .filter(Boolean)
     .join('\n\n');

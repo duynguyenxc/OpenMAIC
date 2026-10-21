@@ -1,6 +1,6 @@
 # Level 3 — architecture
 
-**Duy Nguyen · 21 October 2026 · sublevels 3A and 3B delivered, 3C–3D not started**
+**Duy Nguyen · 21 October 2026 · sublevels 3A, 3B and 3C delivered, 3D not started**
 
 Instruction v3 is explicit about pace: *"Do NOT attempt all Level-3 features simultaneously"*,
 and *"After EACH sublevel: TEST, DOCUMENT, DEPLOY TO STAGING, REPORT."* This document describes
@@ -17,7 +17,7 @@ and *"After EACH sublevel: TEST, DOCUMENT, DEPLOY TO STAGING, REPORT."* This doc
                         +
       Assessment / feedback services    Level 3B — rubrics, assessment, feedback
                         +
-              Knowledge services        Level 3C — not started
+              Knowledge services        Level 3C — resources, retrieval, bounded agents
 ```
 
 Each layer sits **on** the one below and may be removed without it. That is not an aesthetic
@@ -47,6 +47,20 @@ fails."* Nothing in the teaching path calls anything added in 3A.
 | What a human decided about an AI score | `assessment_reviews` |
 | Every piece of feedback generated | `feedback_events` |
 | Services | `lib/level3/assessment.ts`, `lib/level3/feedback.ts` |
+
+## What 3C added
+
+| Concern | Where it lives |
+|---|---|
+| Knowledge resources of four types | `knowledge_resources`, `knowledge_documents`, `knowledge_chunks`, `knowledge_graph_edges` |
+| The abstraction everything retrieves through | `lib/level3/knowledge.ts` — `KnowledgeProvider` |
+| Three retrievers behind it | `DocumentRetriever` (pg_trgm), `VectorRetriever` (pgvector), `KnowledgeGraphRetriever` (triples) |
+| Several sources at once, named by the researcher | `knowledge_attachments` |
+| Configurable, versioned, **bounded** agents | `agent_configurations`, `courses.agent_configuration_id` |
+| What the model was actually given | `retrieval_events` |
+
+`docs/KNOWLEDGE_RESOURCE_ARCHITECTURE.md` has the detail, including what is deliberately not
+claimed about citation precision. 3C touches **no** upstream file.
 
 `docs/RUBRIC_SYSTEM.md` has the detail. The one upstream file 3B touches is
 `lib/server/model-routes.ts`, two strings, recorded in `UPSTREAM_DELTA.md`.
@@ -95,8 +109,6 @@ excluded.
 
 Named here so nobody has to discover it by looking:
 
-- **3C** — knowledge resources, document and vector retrieval, the optional KG provider, bounded
-  agents, provenance.
 - **3D** — handwriting and audio pipelines, LMS/Canvas, advanced analytics.
 - **Random assignment to conditions.** *"Do NOT implement automatic random assignment until
   explicitly requested."* Conditions are set by an administrator per section.
@@ -123,9 +135,9 @@ Named here so nobody has to discover it by looking:
 | `ADMIN_MANUAL.md`, `INSTRUCTOR_MANUAL.md`, `STUDENT_MANUAL.md`, `RESEARCHER_MANUAL.md` | per role |
 
 | `RUBRIC_SYSTEM.md` | rubrics, assessment, review, feedback, revisions |
+| `KNOWLEDGE_RESOURCE_ARCHITECTURE.md` | resources, the provider interface, bounded agents, provenance |
 
-`KNOWLEDGE_RESOURCE_ARCHITECTURE.md` is not written, because 3C is not built. Writing it now would
-describe something that does not exist.
+Every document instruction v3 names now exists.
 
 ## Tests
 
@@ -134,6 +146,7 @@ describe something that does not exist.
 | `scripts/level2-security-tests.mjs` | **58** | everything Level 2 guarantees, re-run as a regression gate |
 | `scripts/level3-research-tests.mjs` | **46** | the end-to-end scenario v3 specifies, with real requests |
 | `scripts/level3b-assessment-tests.mjs` | **42** | rubrics, assessment, review, feedback, revisions — with **real model calls**. `SKIP_LLM=1` runs the 28 that do not need one |
+| `scripts/level3c-knowledge-tests.mjs` | **35** | three retrievers, several sources at once, bounded agents, provenance — with **real embeddings**. `SKIP_LLM=1` runs the 23 that do not need one |
 
 Both suites now name their fixtures after the run and remove them afterwards, because a suite that
 leaves courses behind fills a platform with sections nobody can tell apart.

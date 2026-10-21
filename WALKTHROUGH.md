@@ -386,3 +386,59 @@ Levels 2 and 3A still pass: **58 + 46 + 42 = 146**.
   modest defaults and one environment variable changes them.
 - **No automatic assessment.** An instructor presses the button, because assessment costs money and
   a study design decides when it happens.
+
+---
+
+## L8 — Level 3C: knowledge resources, retrieval, bounded agents (2026-10-21)
+
+The instruction is more insistent here than anywhere else, and all of it is about **not** building
+a thing one way: *"Do not force all knowledge into a KG"*, *"Create a clean abstraction:
+KnowledgeProvider"*, *"Do not tightly couple OpenMAIC to one graph database."*
+
+So nothing above `lib/level3/knowledge.ts` knows what a vector is, what a triple is, or what Neo4j
+is. A caller asks a **source** for context; three retrievers sit behind one interface — trigram over
+chunks, cosine over `vector(1536)`, and triples — and replacing a store means replacing one object.
+The embedder is an **argument** rather than an import, so the vector retriever never learns which
+vendor produced its numbers.
+
+**The retrieval is real.** `pgvector 0.8.2` and `pg_trgm` were available and are now enabled; the
+HNSW index does the work. A chunk with no embedding is simply not found, and the interface reports
+a resource as *"not by meaning — embedding failed"* instead of silently degrading to keyword search
+while claiming otherwise.
+
+**Several sources at once, named by the researcher.** `authoritative`, `counterpoint`, `K1` — the
+platform stores the label, orders by priority, tags every passage with it, and never interprets it,
+because *"Do not hard-code the labels K1 and K2 into the generic platform."*
+
+**A bound that is enforced, not requested.** An agent configuration's `permitted_resources` filters
+the sources *before* any of them is asked, so a bounded agent's model never sees the other material.
+A test attaches three sources, bounds the agent to one, and reads `retrieval_events` afterwards to
+find exactly one source name. That is the difference between an experimental condition and a polite
+sentence in a prompt.
+
+**Provenance, and what is deliberately not claimed.** One row per passage actually handed over —
+request, provider, resource, source name, document, chunk or edge, score — and the assessment row
+names the retrieval request, so "what was this model given" is one join. What no row asserts is that
+the model *used* it: `score` is the retriever's own number and nothing more, because
+*"Do not claim citation precision unless it is actually available."*
+
+**35 checks, 0 failures, with real embeddings.** `SKIP_LLM=1` runs the 23 that need none. Every
+earlier level still passes: **58 + 46 + 42 + 35 = 181**.
+
+### One bug, worth remembering
+
+`OPENAI_BASE_URL=""` is an **empty string**, not undefined, so
+`process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1'` kept the empty string and the request
+went to `/embeddings` — not a URL at all. `??` is the wrong operator for environment variables; an
+empty variable means "not configured". Fixed with a helper and a comment that says why.
+
+### Open, after this session
+
+- **3D not started**: handwriting, audio, LMS, advanced analytics.
+- **No ingestion pipeline.** Text is pasted and chunked by blank line. PDFs, crawling and OCR are
+  not here; OpenMAIC's own extractors are the obvious place to start.
+- **No re-embedding, no reranking, no hybrid fusion**, and `KnowledgeGraphRetriever` reads local
+  triples rather than a remote graph. The `connection` column and the interface are where a Neo4j
+  or GraphRAG implementation plugs in; it is not written, and the documentation does not pretend
+  otherwise.
+- **Usage and cost are still not counted**, now across three services rather than two.

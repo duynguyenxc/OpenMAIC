@@ -55,6 +55,8 @@ export interface AssessmentOutcome {
   raw: unknown;
   model: string;
   promptVersion: string;
+  /** Level 3C: which retrieval request, if any, supplied the context. */
+  retrievalRequestId?: string | null;
 }
 
 export async function loadRubric(rubricId: string): Promise<RubricForAssessment | null> {
@@ -120,6 +122,15 @@ export async function assessResponse(input: {
   model: unknown;
   modelString: string;
   serverManaged?: boolean;
+  /**
+   * Level 3C. Passages retrieved through the KnowledgeProvider interface,
+   * already labelled with the source each came from. The service does not
+   * retrieve them itself: what an assessment was allowed to see is a study's
+   * decision, made by the caller, not a service's.
+   */
+  knowledgeContext?: string | null;
+  /** A bounded agent's rules, if the course runs under one. */
+  agentRules?: { prohibited?: string | null; uncertainty?: string | null } | null;
 }): Promise<AssessmentOutcome> {
   const { rubric } = input;
 
@@ -130,10 +141,15 @@ export async function assessResponse(input: {
     'contains no evidence for a dimension, say so and score it lowest rather',
     'than guessing. Give a confidence between 0 and 1 for each dimension.',
     'Then suggest up to three pieces of feedback a teacher could give.',
+    input.knowledgeContext
+      ? 'Reference material is provided below. Use it where it bears on the answer, and say so. Do not invent material that is not there.'
+      : '',
+    input.agentRules?.prohibited ? `You must not: ${input.agentRules.prohibited}` : '',
+    input.agentRules?.uncertainty ? `When uncertain: ${input.agentRules.uncertainty}` : '',
     'Reply with JSON only, no prose and no code fences, shaped exactly as:',
     '{"scores":[{"dimensionId":"...","score":0,"evidence":"...","confidence":0.0}],',
     ' "feedbackSuggestions":["..."]}',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   const prompt = [
     `RUBRIC "${rubric.title}" v${rubric.version}`,
@@ -144,6 +160,7 @@ export async function assessResponse(input: {
     input.activityPrompt ? `TASK THE STUDENT WAS GIVEN:\n${input.activityPrompt}` : '',
     input.courseContext ? `COURSE CONTEXT:\n${input.courseContext}` : '',
     input.referenceAnswer ? `REFERENCE ANSWER (for your judgement, not to be quoted):\n${input.referenceAnswer}` : '',
+    input.knowledgeContext ? `REFERENCE MATERIAL:\n${input.knowledgeContext}` : '',
     '',
     `STUDENT RESPONSE:\n${input.responseText}`,
   ]

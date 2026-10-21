@@ -13,6 +13,8 @@ import { requireAuthenticatedUser, requireCourseEnrollment, requireCourseInstruc
   from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 import { loadRubric } from '@/lib/level3/assessment';
+import { contextAsText, gatherContext } from '@/lib/level3/knowledge';
+import { embedText } from '@/lib/level3/embeddings';
 import { generateFeedback, policyAllows, recordFeedback, type FeedbackPolicy }
   from '@/lib/level3/feedback';
 import { apiError, json } from '@/lib/level2/route-helpers';
@@ -35,18 +37,24 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         `SELECT lr.id, lr.learner_id AS "learnerId", lr.response_text AS "responseText",
                 lr.activity_id AS "activityId", lr.attempt_number AS "attemptNumber",
                 lr.course_id AS "courseId", c.openmaic_stage_id AS "stageId",
-                ra.rubric_id AS "rubricId", ra.feedback_policy AS "feedbackPolicy"
+                ra.rubric_id AS "rubricId", ra.feedback_policy AS "feedbackPolicy",
+                ac.permitted_resources AS "permittedResources",
+                ac.prohibited_behavior AS "prohibitedBehavior",
+                ac.response_style AS "responseStyle"
            FROM learner_responses lr
            JOIN courses c ON c.id = lr.course_id
            LEFT JOIN rubric_assignments ra
              ON ra.course_id = lr.course_id AND ra.activity_id = lr.activity_id
+           LEFT JOIN agent_configurations ac ON ac.id = c.agent_configuration_id
           WHERE lr.id = $1`,
         [responseId],
       );
       const response = rows[0] as
         | { id: string; learnerId: string; responseText: string; activityId: string;
             attemptNumber: number; courseId: string; stageId: string;
-            rubricId: string | null; feedbackPolicy: string | null }
+            rubricId: string | null; feedbackPolicy: string | null;
+            permittedResources: string[] | null; prohibitedBehavior: string | null;
+            responseStyle: string | null }
         | undefined;
       if (!response) return apiError(404, 'RESPONSE_NOT_FOUND', 'no such response', headers);
 
@@ -107,6 +115,17 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const { model, modelString, serverManaged } =
         await resolveModelFromRequest(req as never, body, 'level3-feedback');
 
+      const context = await gatherContext({
+        stageId: response.stageId,
+        query: response.responseText.slice(0, 500),
+        purpose: 'feedback',
+        permittedResources: response.permittedResources,
+        courseId: response.courseId,
+        learnerId: response.learnerId,
+        responseId: response.id,
+        embed: embedText,
+      });
+
       const feedback = await generateFeedback({
         responseText: response.responseText,
         activityPrompt: typeof body.activityPrompt === 'string' ? body.activityPrompt : null,
@@ -115,10 +134,14 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         priorAttempts: priorAttempts as Array<{ attemptNumber: number; responseText: string }>,
         priorFeedback: (priorFeedback as Array<{ content: string }>).map((f) => f.content),
         model, modelString, serverManaged,
+        knowledgeContext: contextAsText(context.passages) || null,
+        agentRules: { prohibited: response.prohibitedBehavior, style: response.responseStyle },
       });
 
       const id = await recordFeedback(responseId, feedback, policy, actor.role === 'STUDENT');
-      return json({ id, ...feedback, policy }, 201, headers);
+      return json({ id, ...feedback, policy,
+        knowledge: { requestId: context.requestId, sources: context.sources,
+                     passages: context.passages.length } }, 201, headers);
     } catch (error) {
       const { AuthorizationError } = await import('@/lib/level2/authorization');
       if (error instanceof AuthorizationError) {

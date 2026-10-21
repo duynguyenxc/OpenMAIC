@@ -26,6 +26,7 @@ import { DeleteCourseButton } from '@/components/level2/delete-course';
 import { PlatformShell } from '@/components/level2/platform-shell';
 import { TemplateLibrary } from '@/components/level3/template-library';
 import { AssessmentPanel } from '@/components/level3/assessment-panel';
+import { KnowledgePanel } from '@/components/level3/knowledge-panel';
 import { formatWhen, useCourses, useMe, type CourseSummary } from '@/lib/level2/use-platform';
 
 type Filter = 'active' | 'published' | 'draft' | 'archived';
@@ -241,6 +242,9 @@ export default function InstructorDashboard() {
 
       {/* Level 3B: rubrics, AI assessment, human review, feedback. */}
       <AssessmentPanel courses={courses} />
+
+      {/* Level 3C: knowledge sources, retrieval, bounded agents. */}
+      <KnowledgePanel courses={courses} />
 
       <CourseDialog
         course={open?.course ?? null}
