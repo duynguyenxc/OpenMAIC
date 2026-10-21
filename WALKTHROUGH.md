@@ -148,3 +148,51 @@ tell them apart.
 - **Refusals are worded in technical language** (`document authorization required`). Correct, but
   raw. Cosmetic, not a security problem.
 - **Level 3 (`instruction v3`) has not been started.**
+
+---
+
+## L4 — Adversarial testing: the suite's blind spot (2026-10-21)
+
+The project owner asked for a real tester's pass over the deployment rather than another reading
+of the requirements, aimed at usability. It found a **data-loss bug that the 41 automated checks
+cannot catch by construction**, which matters more than the usability list it was asked for.
+
+**S1-1, owner self-lockout.** `POST /courses/<id>/instructors` with your **own** email and
+`permission: EDITOR`, as the owner, returns 200. The upsert overwrites the existing row, so the
+`OWNER` permission becomes `EDITOR`. Verified in the database: `course_instructors` was left with
+one EDITOR row and **no owner**. Every owner-gated call then 403s — measured immediately after, as
+the same user. It cannot be repaired from inside the product, because only an owner may fix the
+owner row and the administrator has no course-authorization interface.
+
+**Why the suite missed it, and this is the reusable lesson.** All 41 checks have one shape:
+*can A reach B's things?* Nobody asked what happens when a user damages **their own** record. The
+identical hazard was foreseen one table over — `user_profiles` refuses self-demotion so the last
+administrator cannot lock everyone out — and the reasoning was never carried across. The suite
+needs a second half: self-damage, repetition, boundary values, honest answers.
+
+**S1-2, double submission.** Two simultaneous `POST /duplicate` calls both returned 201 and
+created two courses. No disabled control, no idempotency. Harmless alone; permanent because there
+is still no delete.
+
+**Also found:** a 5,000-character title accepted; `results?email=` answering 200 with an empty
+list for a student who is not enrolled *and* for an invented address, so "did nothing" and "not in
+this course" are indistinguishable; a malformed email reported as a missing account. Nine measured
+usability findings, the worst being that a click's result appears 3,193 px down a page whose
+viewport is 800.
+
+**What held.** Every unauthenticated request refused (401, six endpoints, on the deployment); a
+course id of `../../etc/passwd` refused; `format=xml` and `status=BANANA` refused; a student
+offered as co-instructor and an instructor offered as student both refused; sign-in does not
+enumerate accounts; HSTS, X-Frame-Options and a frame-ancestors CSP all present; the anonymous
+page shell leaks nothing; accessibility basics clean — 57 buttons, every one with a name.
+
+**Test damage, repaired.** Two probes changed live data: the owner demotion above, and two "RACE
+TEST" courses. The owner row and the title were restored and the two courses deleted by SQL —
+deletion being impossible through the product. Verified afterwards.
+
+Full report and the five-phase plan: `docs/LEVEL2_UPGRADE_PLAN.md`.
+
+### Open, still
+
+Unchanged from L3, plus: **nothing in Phase 1 has been built**, and the deletion rule needs the
+owner's decision — archive-if-it-has-data versus hard delete — because it determines the schema.
