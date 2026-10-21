@@ -6,7 +6,7 @@ export interface Me {
   id: string;
   email: string;
   displayName: string | null;
-  role: 'ADMIN' | 'INSTRUCTOR' | 'STUDENT';
+  role: 'ADMIN' | 'INSTRUCTOR' | 'STUDENT' | 'RESEARCHER';
   externalIdentifier: string | null;
   institution: string | null;
   status: string;

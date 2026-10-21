@@ -250,3 +250,66 @@ manuals, so items 20–22 are earned rather than assumed.
   chosen.
 - **Quiz and PBL records still do not exist** in this deployment, so item 14 remains half proven.
 - **Level 3 has not been started.**
+
+---
+
+## L6 — Level 3A: institutions, templates, studies, research data (2026-10-21)
+
+Instruction v3 is a multi-institution research platform and is explicit about pace: *"Do NOT
+attempt all Level-3 features simultaneously"*, then 3A → 3B → 3C → 3D, with test, document, deploy
+and report after each. **3A is delivered; 3B, 3C and 3D are not started**, and
+`docs/LEVEL3_ARCHITECTURE.md` lists what they contain so nobody has to guess.
+
+**Before starting, as v3 requires:** Level 2 tagged `level2-multiuser-stable`, branch
+`feature/level3-research-platform`, baseline recorded in `docs/LEVEL3_BASELINE.md`, and the gate
+honoured — *"Do not begin Level 3 unless Level 2 ... security tests have passed"* — at 58/58.
+
+**What was built.** Institutions and memberships; course templates with versions and visibility;
+cloning a template into a section; studies, experimental conditions and cohorts; research
+participant identifiers separate from identity, with consent; a research event layer; a
+de-identified export with a data-quality report; an append-only audit log; a RESEARCHER role and
+its dashboard. **No upstream OpenMAIC file was touched** — the delta is still Level 2's seven.
+
+**The decision that shapes it:** research events are a **projection** of OpenMAIC's own
+`runtime_records`, not a second write path. Nothing in the teaching path calls anything added
+here, so research instrumentation cannot slow the classroom or break it, and a failed projection
+loses nothing. Every event carries `source_runtime_record_id` under a unique index, so the
+projection is idempotent and *"do not generate fake events"* is a property of the design rather
+than a promise. Four payload kinds are mapped because four exist here; the other eleven the
+instruction lists are **not** mapped, and the projection reports what it skipped.
+
+**Verified by the scenario v3 specifies**, not by assertion: one module published once, cloned by
+three instructors at three institutions, under two conditions, with different students.
+`scripts/level3-research-tests.mjs` — **46 checks, 0 failures** — confirms the course ids differ,
+the content is equivalent, **no learner runtime and no enrolment was copied**, an instructor sees
+only their own section, an instructor on a study course still cannot export it, a researcher sees
+participant ids without identities, a declined participant is excluded, the export contains no
+email address, and every audited action is recorded with no credential-looking field.
+
+`scripts/level3-demo-study.mjs` builds the worked example and leaves it in place: three sections,
+two conditions, five real events, one consented participant and one who declined.
+
+### Three things found and fixed along the way
+
+- **The role was invisible to the identity layer.** Every RESEARCHER request answered 500 because
+  `coreRoles()` had no branch for it and the registered auth method was captured at server start.
+  The role now maps to an empty capability set — a researcher carries nothing OpenMAIC honours —
+  and the dev server had to be restarted, which is worth remembering: `instrumentation.ts` runs
+  once per process and is not hot-reloaded.
+- **`ON CONFLICT` cannot infer a partial unique index.** The idempotence index was partial for
+  readability; PostgreSQL refused to use it. A plain unique index already allows many NULLs.
+- **Both test suites left courses behind on every run**, which is where the twenty-one sections in
+  the first researcher screenshot came from, and ultimately where the fourteen junk courses of
+  Level 2 came from too. Each suite now names its fixtures after the run and deletes them at the
+  end.
+
+### Open, after this session
+
+- **3B, 3C, 3D not started.** Rubrics and AI assessment are next in the instruction's own order.
+- **Per-response model metadata is not captured** — model, parameters, prompt version. The
+  section's configuration at clone time is. Recorded in `RESEARCH_DATA_MODEL.md` rather than
+  implied.
+- **Quiz and PBL events have still never existed** in this deployment, so those mappings remain
+  unexercised.
+- **Random assignment is deliberately absent**: *"Do NOT implement automatic random assignment
+  until explicitly requested."*

@@ -24,6 +24,7 @@ export default function PlatformEntry() {
     router.replace(
       me.role === 'ADMIN' ? '/platform/admin'
       : me.role === 'INSTRUCTOR' ? '/platform/instructor'
+      : me.role === 'RESEARCHER' ? '/platform/researcher'
       : '/platform/student',
     );
   }, [me, router]);

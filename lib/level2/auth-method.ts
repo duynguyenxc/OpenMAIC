@@ -52,6 +52,10 @@ function coreRoles(role: Role): ReadonlySet<string> {
       return new Set([OWNER_ROLES.coursePublish]);
     case 'STUDENT':
       return new Set<string>();
+    // A researcher may sign in and read what they are authorized to read.
+    // They publish nothing and own nothing, so they carry no OpenMAIC role.
+    case 'RESEARCHER':
+      return new Set<string>();
   }
 }
 

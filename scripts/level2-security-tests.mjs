@@ -94,8 +94,14 @@ for (const n of ['admin','instructor1','instructor2','student1','student2','stud
 }
 
 console.log('\nSetting up Course A (instructor1, students 1+2) and Course B (instructor2, student 3)');
-const COURSE_A = await makeCourse(A.instructor1, 'Course A');
-const COURSE_B = await makeCourse(A.instructor2, 'Course B');
+// Course titles are unique per owner since 2026-10-21, and this suite used to
+// create "Course A" on every run, so the second run failed on its own
+// leftovers. Each run names its courses after itself and removes them at the
+// end, which also stops the database filling with fixtures nobody can tell
+// apart — the reason fourteen of them once had to be cleared by hand.
+const RUN = new Date().toISOString().slice(11, 19).replace(/:/g, '');
+const COURSE_A = await makeCourse(A.instructor1, `Course A (test ${RUN})`);
+const COURSE_B = await makeCourse(A.instructor2, `Course B (test ${RUN})`);
 await enrol(COURSE_A, 'student1@example.test');
 await enrol(COURSE_A, 'student2@example.test');
 await enrol(COURSE_B, 'student3@example.test');
@@ -364,6 +370,20 @@ console.log('NAMES — one instructor cannot own two courses with the same name'
 
     await api(A.instructor1, `/api/level2/courses/${copy.stageId}`, { method: 'DELETE', body: '{}' });
   }
+}
+
+// ── Clean up after ourselves ────────────────────────────────────────────────
+// A suite that leaves a course behind on every run is a suite that fills a
+// demo with noise, which is exactly what happened here before deletion
+// existed. Archived courses are removed outright: they hold only this run's
+// synthetic learner records.
+{
+  const { rows } = await pool.query(
+    `SELECT openmaic_stage_id AS id FROM courses WHERE title LIKE $1`, [`%(test ${RUN})%`]);
+  for (const row of rows) {
+    await pool.query(`DELETE FROM courses WHERE openmaic_stage_id = $1`, [row.id]);
+  }
+  if (rows.length) console.log(`\n(removed ${rows.length} fixture course(s) created by this run)`);
 }
 
 await pool.end();

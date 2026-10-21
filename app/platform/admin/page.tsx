@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CourseDialog } from '@/components/level2/course-dialog';
+import { ResearchAdmin } from '@/components/level3/research-admin';
 import { DeleteCourseButton } from '@/components/level2/delete-course';
 import { Input } from '@/components/ui/input';
 import { PlatformShell } from '@/components/level2/platform-shell';
@@ -32,12 +33,12 @@ import { formatWhen, useCourses, useMe, type CourseSummary } from '@/lib/level2/
 
 interface PlatformUser {
   id: string; email: string; displayName: string | null;
-  role: 'ADMIN' | 'INSTRUCTOR' | 'STUDENT';
+  role: 'ADMIN' | 'INSTRUCTOR' | 'STUDENT' | 'RESEARCHER';
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   externalIdentifier: string | null; institution: string | null; createdAt: string;
 }
 
-const ROLES = ['ADMIN', 'INSTRUCTOR', 'STUDENT'] as const;
+const ROLES = ['ADMIN', 'INSTRUCTOR', 'STUDENT', 'RESEARCHER'] as const;
 
 export default function AdminDashboard() {
   const [managing, setManaging] = useState<CourseSummary | null>(null);
@@ -208,6 +209,9 @@ export default function AdminDashboard() {
           </table>
         </CardContent>
       </Card>
+      {/* Level 3A: institutions and studies are platform administration. */}
+      <ResearchAdmin courses={courses} />
+
       <CourseDialog
         course={managing}
         tab="students"

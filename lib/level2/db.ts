@@ -8,7 +8,13 @@
  */
 import { getServerPersistenceProvider } from '@/lib/persistence/server-provider';
 
-export type Role = 'ADMIN' | 'INSTRUCTOR' | 'STUDENT';
+/**
+ * RESEARCHER arrived with Level 3A. It is a platform role with **no course
+ * permission at all**: a researcher reads de-identified study data and never
+ * becomes a teacher by holding it, which instruction v3 states outright —
+ * "Researcher should NOT automatically be able to modify courses."
+ */
+export type Role = 'ADMIN' | 'INSTRUCTOR' | 'STUDENT' | 'RESEARCHER';
 export type AccountStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING';
 
 export interface UserProfile {

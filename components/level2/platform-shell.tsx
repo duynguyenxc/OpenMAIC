@@ -29,6 +29,11 @@ function linksFor(role: Me['role']): { href: string; label: string }[] {
       { href: '/', label: 'Workspace' },
     ];
   }
+  if (role === 'RESEARCHER') {
+    // No workspace link: a researcher has no course to author, and showing a
+    // door they may not walk through is worse than not showing it.
+    return [{ href: '/platform/researcher', label: 'My studies' }];
+  }
   return [{ href: '/platform/student', label: 'My courses' }];
 }
 
