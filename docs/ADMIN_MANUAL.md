@@ -83,3 +83,77 @@ pilot, adapt the account list at the top of that file. Passwords are written to
 - Exports never contain passwords, API keys, tokens or database credentials.
 - Database backups (`scripts/level2-db-backup.sh`) contain **password hashes and session rows**.
   Treat those files as credentials; they are excluded from version control.
+
+---
+
+# Level 3 — research administration
+
+Everything below is on the same Administrator page, under the users and courses tables.
+
+## Institutions
+
+An institution groups people and course sections, so that one module can be run at several places
+and the data stay separable. **An institution grants nobody access to anything.** Course permission
+is still ownership and enrolment, and belonging to the same institution as a course opens nothing.
+
+To add one, type its name and a short name — "Jackson State University", "JSU" — and press **Add
+institution**. The short name must be unique; it is what appears in research exports.
+
+A person's institution is set on their profile. The accounts seeded for testing already have one.
+
+## Studies
+
+A study is a piece of research: a title, a protocol identifier, a principal investigator, and the
+course sections it covers.
+
+**Create study** with a title, and optionally the email of the principal investigator — who must
+already have an account. The study starts as `DRAFT`; it holds data regardless of status.
+
+Press **Manage** on a study to do the two things that matter.
+
+### Adding a section, and its condition
+
+Choose a course section and give it an **experimental condition** — `CONDITION-A`, `AI_FEEDBACK`,
+whatever your design calls for. The platform does not check the label against any list, because the
+instruction is explicit that researchers define their own.
+
+A section with no condition will be reported as a data-quality failure on the researcher's page,
+because a section without a condition cannot be analysed as one.
+
+Adding a section to a study **does not change who teaches it or who is enrolled**. It only says
+that this section's events belong to this study.
+
+### Registering participants and recording consent
+
+Type a student's email and choose a consent status. The platform allocates a research identifier —
+`P-00001`, `P-00002` — and from then on that is how the person appears in every export.
+
+| Status | What it means |
+|---|---|
+| `NOT_REQUESTED` | nobody has asked them yet. The default |
+| `PENDING` | asked, no answer yet |
+| `CONSENTED` | **the only status whose data appear in an export** |
+| `DECLINED` | they said no |
+| `WITHDRAWN` | they consented and later withdrew |
+
+**Instructional access and research inclusion are separate.** A student uses the platform for their
+course whatever their consent status; consent decides only whether they are in anybody's dataset.
+
+You are the only role that can see which person a participant identifier belongs to. A researcher
+sees `P-00001` and no more.
+
+## Researchers
+
+Give an account the `RESEARCHER` role in the users table. That role **carries no course permission
+at all** — a researcher cannot open, edit or enrol in any course.
+
+Holding the role is not access to anything by itself: a researcher sees only the studies they lead
+or were explicitly added to.
+
+## The audit log
+
+Every administrative action is recorded, append-only, in `audit_log`: who did it, what, to what,
+when. It covers account creation, role changes, course deletion, template publication and cloning,
+enrolment, study changes, consent changes and **every data export**.
+
+It never contains a password, a token or an API key, and there is an automated check that proves it.

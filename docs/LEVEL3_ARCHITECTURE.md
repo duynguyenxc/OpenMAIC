@@ -92,6 +92,25 @@ Named here so nobody has to discover it by looking:
 - **Retention policy.** The consent states exist; automatic deletion does not, deliberately —
   *"Do not permanently delete records automatically without explicit policy."*
 
+## Documents
+
+| Document | Covers |
+|---|---|
+| `LEVEL3_BASELINE.md` | what Level 3 was built on, recorded before any Level-3 code |
+| `LEVEL3_ARCHITECTURE.md` | this file |
+| `DATABASE_SCHEMA.md` | all three groups of tables, and why no foreign key crosses between them |
+| `RESEARCH_DATA_MODEL.md` | the research tables, event types, de-identification |
+| `AUTHORIZATION_MODEL.md` | every check, for both levels |
+| `EXPERIMENT_CONFIGURATION.md` | what pins a condition down, and what is not captured yet |
+| `DATA_DICTIONARY.md` | every export column, and the data-quality checks |
+| `API.md` | every route and the check it performs |
+| `DEPLOYMENT.md` | what is deployed where, environment, migrations, restoring Level 2 |
+| `UPSTREAM_DELTA.md` | the seven upstream files, unchanged by Level 3A |
+| `ADMIN_MANUAL.md`, `INSTRUCTOR_MANUAL.md`, `STUDENT_MANUAL.md`, `RESEARCHER_MANUAL.md` | per role |
+
+`RUBRIC_SYSTEM.md` and `KNOWLEDGE_RESOURCE_ARCHITECTURE.md` are not written, because 3B and 3C are
+not built. Writing them now would describe something that does not exist.
+
 ## Tests
 
 | Suite | Checks | Covers |

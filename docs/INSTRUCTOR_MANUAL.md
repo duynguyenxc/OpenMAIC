@@ -129,3 +129,58 @@ API access fails on the next request.
 - you are the OWNER of the copy.
 
 This is how to run the same material with a second group without the two sharing results.
+
+---
+
+# Level 3 — sharing a module, and running somebody else's
+
+At the bottom of **My courses** there is a **Shared modules** panel. It does two different things.
+
+## Publishing one of your courses as a module
+
+Press **Publish one of my courses**, choose the course, give it a **version** and a **visibility**:
+
+| Visibility | Who can see and clone it |
+|---|---|
+| `PRIVATE` | only you |
+| `INSTITUTION` | anyone at your institution |
+| `COMMUNITY` | every instructor on the platform |
+| `ADMIN_ONLY` | administrators only |
+
+Publishing shares **the instructional design**, never your class. Nobody gains access to your
+course, your students or their work by seeing your module.
+
+### Versions, and why they matter
+
+Publishing the same title at the same version twice is refused. To change a design, publish a new
+version — `1.1`, `2.0`. Sections already cloned keep pointing at the version they were made from,
+which is what lets a study that is running stay comparable.
+
+## Running a module somebody else published
+
+Press **Use this module**. You get a course of your own:
+
+- a **new course id**;
+- **you** as its owner;
+- **no students** — the roll starts empty;
+- **no learner data of any kind** from the original or from anyone else's section;
+- a record of which module and version it came from, and a snapshot of the configuration at that
+  moment, so a researcher can reconstruct later what your students experienced.
+
+It arrives as a draft. Add your students and publish it exactly as you would any course.
+
+Three instructors at three institutions can run the same module at the same time, and each sees
+only their own students. That is the entire point of this level, and it is tested rather than
+asserted.
+
+## If your course is part of a study
+
+An administrator can add your section to a research study and give it an experimental condition.
+That changes nothing about your teaching, your roll or your access.
+
+It does mean a researcher authorized for that study can read **de-identified** data from your
+section: participant identifiers, not names. You keep the identified view of your own students;
+they never get it.
+
+Being an instructor on a study's section does **not** give you access to the study, and you cannot
+export it — that is deliberate, and tested.
