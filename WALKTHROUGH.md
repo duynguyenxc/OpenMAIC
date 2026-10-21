@@ -380,8 +380,9 @@ Levels 2 and 3A still pass: **58 + 46 + 42 = 146**.
   agents, provenance; then handwriting, audio, LMS.
 - **Usage and cost are still not counted.** 3B spends tokens and records the model per assessment,
   but nothing aggregates usage by course, instructor, study or institution.
-- **`MODEL_ROUTES` is set locally and not yet on Vercel**, so assessment and feedback will fail on
-  the deployment until it is. That is a deliberate stopping point: it is an operator's decision
-  which model their money runs.
+- **`MODEL_ROUTES` is now set on Vercel too** — `openai:gpt-4.1` for assessment,
+  `openai:gpt-4.1-mini` for feedback — and the full 3B suite passes against the live deployment
+  with real model calls. Which model an operator's money runs is still their decision; these are
+  modest defaults and one environment variable changes them.
 - **No automatic assessment.** An instructor presses the button, because assessment costs money and
   a study design decides when it happens.
