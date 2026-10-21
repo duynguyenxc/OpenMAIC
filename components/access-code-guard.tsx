@@ -99,10 +99,13 @@ export function AccessCodeGuard({ children }: { children: ReactNode }) {
   // that only a manual Retry cleared. Holding children back until the visitor
   // is authenticated removes that race for every gated page, rather than
   // patching one symptom at a time.
-  if (status.loading) return null;
+  // A blank white page for as long as it takes to answer /api/level2/me —
+  // about ten seconds on a cold server — looked like a broken deployment.
+  // Say something instead (S3-4).
+  if (status.loading) return <Waiting />;
   // Hold the page while the session is unknown, and while a redirect to
   // sign-in is on its way, so no child issues a request that must 401.
-  if (ACCOUNTS_ENABLED && !isPublicPath && signedIn !== true) return null;
+  if (ACCOUNTS_ENABLED && !isPublicPath && signedIn !== true) return <Waiting />;
 
   if (needsAuth) {
     return (
@@ -120,4 +123,16 @@ export function AccessCodeGuard({ children }: { children: ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+function Waiting() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-screen items-center justify-center text-sm text-gray-500"
+    >
+      Loading…
+    </div>
+  );
 }

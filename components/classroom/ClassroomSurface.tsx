@@ -186,6 +186,9 @@ export function ClassroomSurface({
     [classroomId, loadFromStorage, variant],
   );
 
+  /** Level 2: the server refused this document, so retrying cannot help. */
+  const isNotAuthorized = Boolean(error && /authorization required|forbidden/i.test(error));
+
   const retryClassroom = useCallback(() => {
     const loadEpoch = loadEpochRef.current + 1;
     loadEpochRef.current = loadEpoch;
@@ -466,27 +469,50 @@ export function ClassroomSurface({
               data-testid="classroom-load-error"
             >
               <div className="text-center">
-                <p className="text-destructive mb-4">
-                  {loadUnavailable ? (
-                    t('classroom.loadUnavailable')
-                  ) : (
-                    <>
-                      {t('common.errorPrefix')}
-                      {error}
-                    </>
-                  )}
-                </p>
-                {loadUnavailable ? (
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    {t('classroom.loadUnavailableDesc')}
-                  </p>
-                ) : null}
-                <button
-                  onClick={retryClassroom}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                >
-                  {t('common.retry')}
-                </button>
+                {/* Level 2: a refusal is not a failure, and offering Retry for
+                    one is offering a button that can never succeed. A student
+                    who opened a course they are not enrolled in used to read
+                    "Error: @openmaic/storage: document authorization required"
+                    above it (S3-6). */}
+                {isNotAuthorized ? (
+                  <>
+                    <p className="mb-2 text-base font-medium">You cannot open this course</p>
+                    <p className="text-muted-foreground mb-4 text-sm">
+                      It belongs to someone else, or you are not enrolled in it. If you think you
+                      should have access, ask the instructor who runs it.
+                    </p>
+                    <a
+                      href="/platform"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2"
+                    >
+                      Back to my courses
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-destructive mb-4">
+                      {loadUnavailable ? (
+                        t('classroom.loadUnavailable')
+                      ) : (
+                        <>
+                          {t('common.errorPrefix')}
+                          {error}
+                        </>
+                      )}
+                    </p>
+                    {loadUnavailable ? (
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        {t('classroom.loadUnavailableDesc')}
+                      </p>
+                    ) : null}
+                    <button
+                      onClick={retryClassroom}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                    >
+                      {t('common.retry')}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (

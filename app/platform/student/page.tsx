@@ -31,7 +31,7 @@ export default function StudentDashboard() {
   if (!me) return <main className="p-6 text-sm text-muted-foreground">Loading…</main>;
 
   return (
-    <PlatformShell me={me}>
+    <PlatformShell me={me} title="My courses">
       <h1 className="mb-1 text-xl font-semibold">My courses</h1>
       <p className="text-muted-foreground mb-6 text-sm">
         Courses you are enrolled in. {me.externalIdentifier ? `Student ID ${me.externalIdentifier}.` : ''}
@@ -64,6 +64,12 @@ export default function StudentDashboard() {
                 <div className="flex gap-2">
                   <dt>Last activity:</dt>
                   <dd className="text-foreground">{formatWhen(course.lastActivityAt)}</dd>
+                </div>
+                {/* Six courses called "Course A" were indistinguishable on
+                    this screen; the id is what tells them apart (S3-5). */}
+                <div className="flex gap-2">
+                  <dt>Course id:</dt>
+                  <dd className="text-foreground font-mono text-xs">{course.stageId}</dd>
                 </div>
               </dl>
               <Button asChild size="sm">

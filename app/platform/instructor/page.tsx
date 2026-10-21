@@ -2,273 +2,284 @@
 /**
  * Level 2 — Instructor dashboard.
  *
- * Covers the three groups the instruction names: the course list with title,
- * status, student count, co-instructors and last activity; MANAGE STUDENTS
- * (add, remove, reactivate); and COURSE RESULTS, including selecting one
- * enrolled student and reading their trajectory out of OpenMAIC's runtime
- * store. Export is CSV and JSON.
+ * Rewritten on 2026-10-21 against docs/LEVEL2_UPGRADE_PLAN.md. What the
+ * earlier version got wrong, all measured rather than felt:
  *
- * Everything here calls an API that authorizes independently, so a course this
- * instructor is not entitled to is refused even if a request is made by hand.
+ * - eleven courses made a page four screens tall with 57 buttons on it, and
+ *   there was no search, filter or sort to cut it down (S3-2);
+ * - the entry point to making a course rendered *only while the list was
+ *   empty*, so an instructor with one course could not make a second (S4-2);
+ * - a course could not be renamed or deleted from anywhere in the product
+ *   (S4-3, S4-1), which is why copies accumulated as "(copy) (copy)";
+ * - clicking a button opened its panel three screens further down (S3-1).
+ *
+ * So: one compact row per course, the controls that act on a course behind its
+ * own menu, and everything about a course in a dialog over the page.
  */
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { CourseDialog } from '@/components/level2/course-dialog';
+import { DeleteCourseButton } from '@/components/level2/delete-course';
 import { PlatformShell } from '@/components/level2/platform-shell';
 import { formatWhen, useCourses, useMe, type CourseSummary } from '@/lib/level2/use-platform';
 
-interface EnrolledStudent {
-  id: string; email: string; displayName: string | null;
-  externalIdentifier: string | null; status: string; enrolledAt: string;
-}
-interface ResultRow {
-  email: string; displayName: string | null; externalIdentifier: string | null;
-  enrollmentStatus: string; sessions: number; records: number;
-  lastActivityAt: string | null; kinds: string[];
-}
-interface TrajectoryEvent {
-  activityType: string | null; activityId: string | null;
-  learnerInput: string | null; agentResponse: string | null;
-  seq: number | null; createdAt: string | null;
-}
-
-type Panel = 'students' | 'results';
+type Filter = 'active' | 'published' | 'draft' | 'archived';
+type Sort = 'activity' | 'title' | 'created';
 
 export default function InstructorDashboard() {
-  const router = useRouter();
   const me = useMe();
   const { courses, reload } = useCourses();
-  const [selected, setSelected] = useState<CourseSummary | null>(null);
-  const [panel, setPanel] = useState<Panel>('students');
-  const [students, setStudents] = useState<EnrolledStudent[]>([]);
-  const [results, setResults] = useState<ResultRow[]>([]);
-  const [trajectory, setTrajectory] = useState<{ email: string; events: TrajectoryEvent[] } | null>(null);
-  const [newEmail, setNewEmail] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('active');
+  const [sort, setSort] = useState<Sort>('activity');
+  const [open, setOpen] = useState<{ course: CourseSummary; tab: 'students' | 'team' | 'results' } | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => { if (me === null) router.replace('/platform/login'); }, [me, router]);
+  const shown = useMemo(() => {
+    if (!courses) return [];
+    const q = query.trim().toLowerCase();
+    return courses
+      .filter((c) =>
+        filter === 'active' ? c.status !== 'ARCHIVED'
+        : filter === 'published' ? c.status === 'PUBLISHED'
+        : filter === 'draft' ? c.status === 'DRAFT'
+        : c.status === 'ARCHIVED',
+      )
+      .filter((c) => !q || c.title.toLowerCase().includes(q) || c.stageId.toLowerCase().includes(q))
+      .sort((a, b) =>
+        sort === 'title' ? a.title.localeCompare(b.title)
+        : sort === 'created' ? (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
+        : (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? ''),
+      );
+  }, [courses, query, filter, sort]);
 
-  const loadStudents = useCallback(async (stageId: string) => {
-    const res = await fetch(`/api/level2/courses/${stageId}/enrollments`);
-    setStudents(res.ok ? (await res.json()).students : []);
-  }, []);
+  if (me === undefined) return <LoadingScreen />;
+  if (me === null) return null;
 
-  const loadResults = useCallback(async (stageId: string) => {
-    const res = await fetch(`/api/level2/courses/${stageId}/results`);
-    setResults(res.ok ? (await res.json()).students : []);
-  }, []);
-
-  function open(course: CourseSummary, which: Panel) {
-    setSelected(course); setPanel(which); setTrajectory(null); setMessage(null);
-    void (which === 'students' ? loadStudents(course.stageId) : loadResults(course.stageId));
+  async function change(stageId: string, body: Record<string, unknown>, success: string) {
+    if (busy) return;
+    setBusy(true);
+    const res = await fetch(`/api/level2/courses/${stageId}`, {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    setNote(res.ok ? success : (data.error?.message ?? 'That did not work.'));
+    if (res.ok) reload();
+    setBusy(false);
   }
-
-  async function act(path: string, init: RequestInit, done: string) {
-    const res = await fetch(path, init);
-    const body = await res.json().catch(() => ({}));
-    setMessage(res.ok ? done : (body?.error?.message ?? `Failed (${res.status})`));
-    if (res.ok && selected) { await loadStudents(selected.stageId); reload(); }
-  }
-
-  if (!me) return <main className="p-6 text-sm text-muted-foreground">Loading…</main>;
 
   return (
-    <PlatformShell me={me}>
-      <h1 className="mb-1 text-xl font-semibold">My courses</h1>
-      <p className="text-muted-foreground mb-6 text-sm">
-        Courses you own or have been given access to.
-      </p>
+    <PlatformShell me={me} title="My courses">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">My courses</h1>
+          <p className="text-muted-foreground text-sm">
+            Courses you own or have been given access to.
+          </p>
+        </div>
+        {/* Permanent, not only while the list is empty. */}
+        <Button asChild>
+          <Link href="/">+ New course</Link>
+        </Button>
+      </div>
 
-      {courses?.length === 0 && (
-        <Card><CardContent className="text-muted-foreground py-8 text-center text-sm">
-          No courses yet. Create one in the OpenMAIC workspace; it becomes yours automatically.
-          <div className="mt-3"><Button asChild size="sm"><Link href="/">Open workspace</Link></Button></div>
-        </CardContent></Card>
+      {note && (
+        <p role="alert" className="bg-muted mb-3 rounded-md px-3 py-2 text-sm">
+          {note}
+        </p>
       )}
 
-      <div className="space-y-3">
-        {courses?.map((course) => (
-          <Card key={course.id}>
-            <CardHeader className="pb-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-base">{course.title}</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant={course.status === 'PUBLISHED' ? 'default' : 'secondary'}>
-                    {course.status}
-                  </Badge>
-                  <Button size="sm" variant="outline"
-                    onClick={() => void act(
-                      `/api/level2/courses/${course.stageId}`,
-                      { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ status: course.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED' }) },
-                      course.status === 'PUBLISHED' ? 'Unpublished.' : 'Published.',
-                    )}>
-                    {course.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+      <div className="mb-3 flex flex-wrap gap-2">
+        <Input
+          className="max-w-xs"
+          placeholder="Search by name or id…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search courses"
+        />
+        <select
+          className="border-input bg-background rounded-md border px-3 text-sm"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as Filter)}
+          aria-label="Filter courses"
+        >
+          <option value="active">Active</option>
+          <option value="published">Published</option>
+          <option value="draft">Drafts</option>
+          <option value="archived">Archived</option>
+        </select>
+        <select
+          className="border-input bg-background rounded-md border px-3 text-sm"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as Sort)}
+          aria-label="Sort courses"
+        >
+          <option value="activity">Last activity</option>
+          <option value="created">Newest</option>
+          <option value="title">Name</option>
+        </select>
+      </div>
+
+      {courses === undefined && <p className="text-muted-foreground text-sm">Loading your courses…</p>}
+
+      {courses && shown.length === 0 && (
+        <div className="rounded-lg border py-10 text-center">
+          <p className="text-muted-foreground text-sm">
+            {courses.length === 0
+              ? 'You have no courses yet. Make one in the OpenMAIC workspace and it becomes yours automatically.'
+              : 'No course matches what you typed.'}
+          </p>
+          {courses.length === 0 && (
+            <Button className="mt-3" asChild>
+              <Link href="/">Open the workspace</Link>
+            </Button>
+          )}
+        </div>
+      )}
+
+      <div className="divide-y rounded-lg border">
+        {shown.map((c) => (
+          <div key={c.stageId} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              {renaming === c.stageId ? (
+                <form
+                  className="flex gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void change(c.stageId, { title: draftTitle }, `Renamed to “${draftTitle.trim()}”.`).then(
+                      () => setRenaming(null),
+                    );
+                  }}
+                >
+                  <Input
+                    autoFocus
+                    maxLength={200}
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    aria-label="New course name"
+                  />
+                  <Button size="sm" type="submit" disabled={busy}>Save</Button>
+                  <Button size="sm" type="button" variant="ghost" onClick={() => setRenaming(null)}>
+                    Cancel
                   </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="text-muted-foreground grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-                <span>Students: <span className="text-foreground">{course.studentCount}</span></span>
-                <span>Last activity: <span className="text-foreground">{formatWhen(course.lastActivityAt)}</span></span>
-                <span className="sm:col-span-2">
-                  Co-instructors:{' '}
-                  <span className="text-foreground">
-                    {course.coInstructors?.length ? course.coInstructors.join(', ') : 'none'}
-                  </span>
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline"><Link href={`/workspace?stage=${course.stageId}`}>Edit</Link></Button>
-                <Button asChild size="sm" variant="outline"><Link href={`/classroom/${course.stageId}`}>Open classroom</Link></Button>
-                <Button size="sm" variant="outline" onClick={() => open(course, 'students')}>Manage students</Button>
-                <Button size="sm" variant="outline" onClick={() => open(course, 'results')}>Results</Button>
-                <Button size="sm" variant="ghost" onClick={async () => {
-                  const res = await fetch(`/api/level2/courses/${course.stageId}/duplicate`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: `${course.title} (copy)` }),
-                  });
-                  const body = await res.json().catch(() => ({}));
-                  setMessage(res.ok
-                    ? `Duplicated as "${body.title}". The copy starts as a draft with no students and no learner data.`
-                    : (body?.error?.message ?? `Failed (${res.status})`));
-                  if (res.ok) reload();
-                }}>Duplicate</Button>
-              </div>
-            </CardContent>
-          </Card>
+                </form>
+              ) : (
+                <>
+                  <div className="truncate font-medium">{c.title}</div>
+                  {/* The id and the date are what tell six courses called
+                      "Course A" apart (S3-5). */}
+                  <div className="text-muted-foreground truncate text-xs">
+                    {c.stageId} · {c.studentCount} student{Number(c.studentCount) === 1 ? '' : 's'} ·
+                    last activity {formatWhen(c.lastActivityAt)}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <Badge variant={c.status === 'PUBLISHED' ? 'default' : 'secondary'}>{c.status}</Badge>
+
+            <div className="flex flex-wrap items-center gap-1">
+              <Button size="sm" variant="outline" onClick={() => setOpen({ course: c, tab: 'students' })}>
+                Students
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setOpen({ course: c, tab: 'results' })}>
+                Results
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href={`/classroom/${c.stageId}`}>Open</Link>
+              </Button>
+              <Button size="sm" variant="ghost" asChild>
+                <Link href={`/workspace?stage=${c.stageId}`}>Edit</Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setRenaming(c.stageId);
+                  setDraftTitle(c.title);
+                }}
+              >
+                Rename
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() =>
+                  void change(
+                    c.stageId,
+                    { status: c.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED' },
+                    c.status === 'PUBLISHED'
+                      ? 'Unpublished. Students can no longer open it.'
+                      : 'Published. Enrolled students can open it now.',
+                  )
+                }
+              >
+                {c.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+              </Button>
+              <DuplicateButton course={c} onDone={(m) => { setNote(m); reload(); }} />
+              <DeleteCourseButton course={c} onDone={(m) => { setNote(m); reload(); }} />
+            </div>
+          </div>
         ))}
       </div>
 
-      {selected && (
-        <Card className="mt-6">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">
-                {panel === 'students' ? 'Manage students' : 'Course results'} — {selected.title}
-              </CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>Close</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {message && <p className="text-sm">{message}</p>}
-
-            {panel === 'students' && (
-              <>
-                <form className="flex gap-2" onSubmit={(e) => {
-                  e.preventDefault();
-                  void act(`/api/level2/courses/${selected.stageId}/enrollments`,
-                    { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ email: newEmail.trim() }) },
-                    `Enrolled ${newEmail.trim()}.`);
-                  setNewEmail('');
-                }}>
-                  <Input placeholder="student@example.test" value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)} />
-                  <Button type="submit" size="sm">Add student</Button>
-                </form>
-                <table className="w-full text-sm">
-                  <thead className="text-muted-foreground border-b text-left">
-                    <tr><th className="py-2">Student</th><th>ID</th><th>Status</th><th /></tr>
-                  </thead>
-                  <tbody>
-                    {students.map((s) => (
-                      <tr key={s.id} className="border-b last:border-0">
-                        <td className="py-2">{s.displayName ?? s.email}<br />
-                          <span className="text-muted-foreground text-xs">{s.email}</span></td>
-                        <td>{s.externalIdentifier ?? '—'}</td>
-                        <td><Badge variant={s.status === 'ACTIVE' ? 'default' : 'secondary'}>{s.status}</Badge></td>
-                        <td className="text-right">
-                          {s.status === 'ACTIVE' ? (
-                            <Button size="sm" variant="outline" onClick={() => void act(
-                              `/api/level2/courses/${selected.stageId}/enrollments?email=${encodeURIComponent(s.email)}`,
-                              { method: 'DELETE' }, `Deactivated ${s.email}.`)}>Deactivate</Button>
-                          ) : (
-                            <Button size="sm" variant="outline" onClick={() => void act(
-                              `/api/level2/courses/${selected.stageId}/enrollments`,
-                              { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: s.email }) }, `Reactivated ${s.email}.`)}>Reactivate</Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {students.length === 0 && (
-                      <tr><td colSpan={4} className="text-muted-foreground py-4">No students enrolled.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </>
-            )}
-
-            {panel === 'results' && (
-              <>
-                <div className="flex gap-2">
-                  <Button asChild size="sm" variant="outline">
-                    <a href={`/api/level2/courses/${selected.stageId}/export?format=csv`}>Export CSV</a>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <a href={`/api/level2/courses/${selected.stageId}/export?format=json`}>Export JSON</a>
-                  </Button>
-                </div>
-                <table className="w-full text-sm">
-                  <thead className="text-muted-foreground border-b text-left">
-                    <tr><th className="py-2">Student</th><th>Sessions</th><th>Interactions</th>
-                      <th>Activity types</th><th>Last activity</th><th /></tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <tr key={r.email} className="border-b last:border-0">
-                        <td className="py-2">{r.displayName ?? r.email}<br />
-                          <span className="text-muted-foreground text-xs">{r.externalIdentifier ?? r.email}</span></td>
-                        <td>{r.sessions}</td>
-                        <td>{r.records}</td>
-                        <td className="text-muted-foreground text-xs">{r.kinds?.length ? r.kinds.join(', ') : '—'}</td>
-                        <td>{formatWhen(r.lastActivityAt)}</td>
-                        <td className="text-right">
-                          <Button size="sm" variant="ghost" onClick={async () => {
-                            const res = await fetch(
-                              `/api/level2/courses/${selected.stageId}/results?email=${encodeURIComponent(r.email)}`);
-                            setTrajectory(res.ok ? await res.json() : null);
-                          }}>View trajectory</Button>
-                        </td>
-                      </tr>
-                    ))}
-                    {results.length === 0 && (
-                      <tr><td colSpan={6} className="text-muted-foreground py-4">No enrolled students yet.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-
-                {trajectory && (
-                  <div className="rounded-md border p-3">
-                    <p className="mb-2 text-sm font-medium">Trajectory — {trajectory.email}</p>
-                    {trajectory.events.length === 0 && (
-                      <p className="text-muted-foreground text-sm">No interaction recorded yet.</p>
-                    )}
-                    <ol className="space-y-2">
-                      {trajectory.events.map((e, i) => (
-                        <li key={i} className="text-sm">
-                          <span className="text-muted-foreground text-xs">
-                            {formatWhen(e.createdAt)} · {e.activityType ?? 'event'}
-                            {e.activityId ? ` · ${e.activityId}` : ''}
-                          </span>
-                          {e.learnerInput && <p className="mt-0.5"><b>Student:</b> {e.learnerInput}</p>}
-                          {e.agentResponse && <p className="mt-0.5"><b>AI:</b> {e.agentResponse}</p>}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <CourseDialog
+        course={open?.course ?? null}
+        tab={open?.tab ?? 'students'}
+        onClose={() => setOpen(null)}
+        onChanged={reload}
+      />
     </PlatformShell>
+  );
+}
+
+/** Disabled while in flight: two clicks used to make two courses (S1-2). */
+function DuplicateButton({ course, onDone }: { course: CourseSummary; onDone: (m: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        const res = await fetch(`/api/level2/courses/${course.stageId}/duplicate`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: `${course.title} (copy)` }),
+        });
+        const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+        onDone(
+          res.ok
+            ? data.deduplicated
+              ? 'That copy had already been made a moment ago.'
+              : `Copied as “${String(data.title)}”. It starts as a draft with no students.`
+            : String((data.error as { message?: string } | undefined)?.message ?? 'Copy failed.'),
+        );
+        setBusy(false);
+      }}
+    >
+      {busy ? 'Copying…' : 'Duplicate'}
+    </Button>
+  );
+}
+
+export function LoadingScreen() {
+  return (
+    <main className="flex min-h-screen items-center justify-center">
+      <p className="text-muted-foreground text-sm">Loading…</p>
+    </main>
   );
 }

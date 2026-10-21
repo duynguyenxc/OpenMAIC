@@ -10,6 +10,8 @@
  *   COURSE A  owner Instructor 1, students 1 and 2
  *   COURSE B  owner Instructor 2, student 3
  */
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
 
@@ -54,8 +56,12 @@ function check(label, ok, detail = '') {
 const refused = (r) => r.status === 401 || r.status === 403;
 
 async function makeCourse(actor, title) {
-  const scene = JSON.parse(readFileSync('/tmp/real-scene.json','utf8'));
-  const stage = JSON.parse(readFileSync('/tmp/real-stage.json','utf8'));
+  // The fixtures used to be read from /tmp, so the suite stopped running the
+  // first time that directory was cleared — a test suite that cannot be run
+  // is not a test suite. They now live in the repository, beside this script.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const scene = JSON.parse(readFileSync(join(here, 'fixtures/scene.json'), 'utf8'));
+  const stage = JSON.parse(readFileSync(join(here, 'fixtures/stage.json'), 'utf8'));
   const id = 'T' + Math.random().toString(36).slice(2, 10);
   const doc = { stage: { ...stage, id, name: title, createdAt: Date.now(), updatedAt: Date.now() },
                 scenes: [{ ...scene, id: 'sc1', stageId: id, order: 1, title: 'Lesson 1' }],
@@ -160,7 +166,7 @@ console.log('STUDENT 1');
   // being rejected by schema validation first — otherwise this proves nothing.
   check('cannot create a course', await (async () => {
     const id = 'HACK' + Date.now();
-    const stage = JSON.parse(readFileSync('/tmp/real-stage.json','utf8'));
+    const stage = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures/stage.json'), 'utf8'));
     const r = await api(A.student1, `/api/persistence/documents/${id}`, { method:'PUT',
       body: JSON.stringify({ stage: { ...stage, id, name: 'student course', createdAt: Date.now(), updatedAt: Date.now() },
                              scenes: [], outline: { outlines: [] } }) });
@@ -215,6 +221,126 @@ console.log('TWO STUDENTS IN ONE COURSE — runtime stays separate');
   check('no session is attributed to the wrong student',
     (s1?.sessions ?? 0) + (s2?.sessions ?? 0) === total,
     `s1=${s1?.sessions} + s2=${s2?.sessions} should equal ${total}`);
+}
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * The second half.
+ *
+ * Everything above has one shape: can A reach B's things? That shape missed a
+ * bug that cost an owner their own course — offering your own address to the
+ * co-instructor endpoint overwrote OWNER with EDITOR and locked you out, with
+ * no way back from inside the product. Four more shapes are checked here:
+ * damaging your own record, sending the same request twice, values that are
+ * syntactically fine and semantically absurd, and answers that are true but
+ * misleading.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+console.log('SELF-DAMAGE — a user may not break their own access');
+{
+  const demote = await api(A.instructor1, `/api/level2/courses/${COURSE_A}/instructors`, {
+    method: 'POST',
+    body: JSON.stringify({ email: 'instructor1@example.test', permission: 'EDITOR' }),
+  });
+  check('owner cannot demote themselves to editor', demote.status === 409,
+    `got ${demote.status} ${demote.body.slice(0, 80)}`);
+
+  // And the owner still owns the course afterwards, which is the point.
+  const { rows } = await pool.query(
+    `SELECT ci.permission FROM course_instructors ci
+       JOIN courses c ON c.id = ci.course_id
+       JOIN user_profiles up ON up.id = ci.instructor_id
+      WHERE c.openmaic_stage_id = $1 AND up.email = 'instructor1@example.test'`, [COURSE_A]);
+  check('the owner row survives the attempt', rows[0]?.permission === 'OWNER',
+    `permission is ${rows[0]?.permission}`);
+
+  const stillOwner = await api(A.instructor1, `/api/level2/courses/${COURSE_A}`, {
+    method: 'PATCH', body: JSON.stringify({ status: 'PUBLISHED' }),
+  });
+  check('owner-only actions still work afterwards', stillOwner.status === 200);
+}
+
+console.log('REPETITION — the same request twice is not two courses');
+{
+  const body = JSON.stringify({ title: 'Idempotence probe' });
+  const [one, two] = await Promise.all([
+    api(A.instructor1, `/api/level2/courses/${COURSE_A}/duplicate`, { method: 'POST', body }),
+    api(A.instructor1, `/api/level2/courses/${COURSE_A}/duplicate`, { method: 'POST', body }),
+  ]);
+  const ids = [one, two].map((r) => (r.status < 300 ? JSON.parse(r.body).stageId : null));
+  check('two simultaneous duplicates produce one course', ids[0] && ids[0] === ids[1],
+    `${ids[0]} vs ${ids[1]}`);
+  if (ids[0]) {
+    await api(A.instructor1, `/api/level2/courses/${ids[0]}`, { method: 'DELETE', body: '{}' });
+  }
+}
+
+console.log('BOUNDARY VALUES — absurd input is refused, not stored');
+{
+  const long = await api(A.instructor1, `/api/level2/courses/${COURSE_A}`, {
+    method: 'PATCH', body: JSON.stringify({ title: 'X'.repeat(5000) }),
+  });
+  check('a 5,000-character title is refused', long.status === 400, `got ${long.status}`);
+
+  const blank = await api(A.instructor1, `/api/level2/courses/${COURSE_A}`, {
+    method: 'PATCH', body: JSON.stringify({ title: '   ' }),
+  });
+  check('a blank title is refused', blank.status === 400, `got ${blank.status}`);
+
+  const malformed = await api(A.instructor1, `/api/level2/courses/${COURSE_A}/enrollments`, {
+    method: 'POST', body: JSON.stringify({ email: 'not-an-address' }),
+  });
+  check('a malformed email is refused as malformed, not as a missing account',
+    malformed.status === 400 && malformed.body.includes('MALFORMED_EMAIL'),
+    `got ${malformed.status} ${malformed.body.slice(0, 60)}`);
+
+  const traversal = await api(A.instructor1, '/api/level2/courses/..%2F..%2Fetc%2Fpasswd/results');
+  check('a path-traversal course id is refused', refused(traversal), `got ${traversal.status}`);
+}
+
+console.log('HONEST ANSWERS — "nothing" and "not yours" are different answers');
+{
+  const stranger = await api(A.instructor1,
+    `/api/level2/courses/${COURSE_A}/results?email=nobody@example.test`);
+  check('results for an address not on the course is 404, not an empty list',
+    stranger.status === 404, `got ${stranger.status} ${stranger.body.slice(0, 60)}`);
+
+  const enrolled = await api(A.instructor1,
+    `/api/level2/courses/${COURSE_A}/results?email=student1@example.test`);
+  check('results for an enrolled student is 200', enrolled.status === 200);
+
+  const again = await api(A.instructor1, `/api/level2/courses/${COURSE_A}/enrollments`, {
+    method: 'POST', body: JSON.stringify({ email: 'student1@example.test' }),
+  });
+  check('re-enrolling an active student says so rather than "enrolled"',
+    again.status === 200 && JSON.parse(again.body).outcome === 'already-enrolled',
+    again.body.slice(0, 80));
+}
+
+console.log('DELETION — reversible by default, and only for those entitled');
+{
+  const asStudent = await api(A.student1, `/api/level2/courses/${COURSE_A}`, {
+    method: 'DELETE', body: '{}' });
+  check('a student cannot delete a course', refused(asStudent), `got ${asStudent.status}`);
+
+  const otherInstructor = await api(A.instructor2, `/api/level2/courses/${COURSE_A}`, {
+    method: 'DELETE', body: '{}' });
+  check('another instructor cannot delete the course', refused(otherInstructor),
+    `got ${otherInstructor.status}`);
+
+  // Course A has learner sessions by now, so the owner's delete must archive.
+  const owner = await api(A.instructor1, `/api/level2/courses/${COURSE_A}`, {
+    method: 'DELETE', body: '{}' });
+  const archived = owner.status === 200 && JSON.parse(owner.body).archived === true;
+  check('a course holding learner work is archived, not deleted', archived,
+    owner.body.slice(0, 100));
+
+  const { rows: [kept] } = await pool.query(
+    `SELECT count(*)::int AS sessions FROM runtime_sessions WHERE stage_id = $1`, [COURSE_A]);
+  check('archiving keeps every learner session', kept.sessions > 0, `sessions=${kept.sessions}`);
+
+  await api(A.instructor1, `/api/level2/courses/${COURSE_A}`, {
+    method: 'PATCH', body: JSON.stringify({ status: 'PUBLISHED' }) });
 }
 
 await pool.end();

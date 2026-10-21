@@ -60,7 +60,8 @@ export default function LoginPage() {
             </Button>
             <p className="text-muted-foreground text-xs">
               Accounts are created by an administrator. A new account stays pending until it is
-              approved.
+              approved. If you have forgotten your password, ask your administrator to set a new
+              one — there is no self-service reset, by design.
             </p>
           </form>
         </CardContent>

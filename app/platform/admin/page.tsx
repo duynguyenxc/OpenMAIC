@@ -4,8 +4,15 @@
  *
  * The instruction's three groups: USERS (role, institution, status, activate
  * and deactivate, change role), COURSES (all of them, with owner,
- * co-instructors, student count and status), and AUTHORIZATION, which needs no
- * separate surface because every course route already admits an administrator.
+ * co-instructors, student count and status), and AUTHORIZATION — assigning and
+ * removing instructors, enrolling and removing students.
+ *
+ * AUTHORIZATION used to be missing here, on the argument that every course
+ * route already admits an administrator. That was true of the API and false of
+ * the administrator, who had no way to reach it: the only per-course control
+ * was a link into the classroom. The instruction asks for the dashboard, not
+ * for the permission. It is now the same dialog the instructor uses, opened on
+ * any course (S4-4).
  *
  * An administrator cannot change their own role here. The server refuses it
  * too; without that, the last administrator could demote themselves and leave
@@ -17,8 +24,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CourseDialog } from '@/components/level2/course-dialog';
+import { DeleteCourseButton } from '@/components/level2/delete-course';
+import { Input } from '@/components/ui/input';
 import { PlatformShell } from '@/components/level2/platform-shell';
-import { formatWhen, useCourses, useMe } from '@/lib/level2/use-platform';
+import { formatWhen, useCourses, useMe, type CourseSummary } from '@/lib/level2/use-platform';
 
 interface PlatformUser {
   id: string; email: string; displayName: string | null;
@@ -30,9 +40,11 @@ interface PlatformUser {
 const ROLES = ['ADMIN', 'INSTRUCTOR', 'STUDENT'] as const;
 
 export default function AdminDashboard() {
+  const [managing, setManaging] = useState<CourseSummary | null>(null);
+  const [userQuery, setUserQuery] = useState('');
   const router = useRouter();
   const me = useMe();
-  const { courses } = useCourses();
+  const { courses, reload: reloadCourses } = useCourses();
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -56,10 +68,20 @@ export default function AdminDashboard() {
 
   if (!me) return <main className="p-6 text-sm text-muted-foreground">Loading…</main>;
 
+  const q = userQuery.trim().toLowerCase();
+  const shownUsers = users.filter(
+    (u) =>
+      !q ||
+      u.email.toLowerCase().includes(q) ||
+      (u.displayName ?? '').toLowerCase().includes(q) ||
+      (u.externalIdentifier ?? '').toLowerCase().includes(q) ||
+      u.role.toLowerCase() === q,
+  );
+
   const pending = users.filter((u) => u.status === 'PENDING');
 
   return (
-    <PlatformShell me={me}>
+    <PlatformShell me={me} title="Administration">
       {message && <p className="mb-4 text-sm">{message}</p>}
 
       {pending.length > 0 && (
@@ -88,13 +110,21 @@ export default function AdminDashboard() {
       <Card className="mb-6">
         <CardHeader className="pb-3"><CardTitle className="text-base">Users ({users.length})</CardTitle></CardHeader>
         <CardContent>
+          {/* Six accounts need no search; two hundred students do (S3-2). */}
+          <Input
+            className="mb-3 max-w-xs"
+            placeholder="Search name, email, student id or role…"
+            value={userQuery}
+            onChange={(e) => setUserQuery(e.target.value)}
+            aria-label="Search users"
+          />
           <table className="w-full text-sm">
             <thead className="text-muted-foreground border-b text-left">
               <tr><th className="py-2">Account</th><th>ID</th><th>Institution</th>
                 <th>Role</th><th>Status</th><th /></tr>
             </thead>
             <tbody>
-              {users.map((u) => {
+              {shownUsers.map((u) => {
                 const self = u.id === me.id;
                 return (
                   <tr key={u.id} className="border-b last:border-0">
@@ -138,12 +168,13 @@ export default function AdminDashboard() {
         <CardContent>
           <table className="w-full text-sm">
             <thead className="text-muted-foreground border-b text-left">
-              <tr><th className="py-2">Course</th><th>Owner</th><th>Co-instructors</th>
+              <tr className="[&>th]:px-2 [&>th]:py-2 [&>th]:whitespace-nowrap">
+                <th>Course</th><th>Owner</th><th>Co-instructors</th>
                 <th>Students</th><th>Status</th><th>Last activity</th><th /></tr>
             </thead>
             <tbody>
               {courses?.map((c) => (
-                <tr key={c.id} className="border-b last:border-0">
+                <tr key={c.id} className="border-b last:border-0 [&>td]:px-2 [&>td]:py-2">
                   <td className="py-2">{c.title}<br />
                     <span className="text-muted-foreground text-xs">{c.stageId}</span></td>
                   <td>{c.ownerEmail}</td>
@@ -153,10 +184,20 @@ export default function AdminDashboard() {
                   <td>{c.studentCount}</td>
                   <td><Badge variant={c.status === 'PUBLISHED' ? 'default' : 'secondary'}>{c.status}</Badge></td>
                   <td>{formatWhen(c.lastActivityAt)}</td>
-                  <td className="text-right">
+                  <td className="space-x-1 text-right whitespace-nowrap">
+                    <Button size="sm" variant="outline" onClick={() => setManaging(c)}>
+                      Manage
+                    </Button>
                     <Button asChild size="sm" variant="ghost">
                       <Link href={`/classroom/${c.stageId}`}>Open</Link>
                     </Button>
+                    <DeleteCourseButton
+                      course={c}
+                      onDone={(m) => {
+                        setMessage(m);
+                        reloadCourses();
+                      }}
+                    />
                   </td>
                 </tr>
               ))}
@@ -167,6 +208,12 @@ export default function AdminDashboard() {
           </table>
         </CardContent>
       </Card>
+      <CourseDialog
+        course={managing}
+        tab="students"
+        onClose={() => setManaging(null)}
+        onChanged={reloadCourses}
+      />
     </PlatformShell>
   );
 }

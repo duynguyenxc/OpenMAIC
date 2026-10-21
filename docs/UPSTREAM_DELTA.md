@@ -7,14 +7,15 @@ Nearly all of Level 2 is **new files**; the list below is everything that touche
 maintains.
 
 ```
- .gitignore                             |  14 ++++
- app/api/persistence/[...path]/route.ts |  15 ++++
- app/page.tsx                           |   6 ++
- components/access-code-guard.tsx       | 103 ++++++++++++++++++++++------
- instrumentation.ts                     |  31 +++++++++
- package.json                           |   6 +-
- pnpm-lock.yaml                         | 122 ++++++++++++++++++++++++++++-----
- 7 files changed, 259 insertions(+), 38 deletions(-)
+ .gitignore                                |  14 ++++
+ app/api/persistence/[...path]/route.ts    |  15 ++++
+ app/page.tsx                              |   6 ++
+ components/access-code-guard.tsx          | 114 +++++++++++++++++++++++-----
+ components/classroom/ClassroomSurface.tsx |  68 ++++++++++++-----
+ instrumentation.ts                        |  31 ++++++++
+ package.json                              |   6 +-
+ pnpm-lock.yaml                            | 122 ++++++++++++++++++++++++++----
+ 8 files changed, 319 insertions(+), 57 deletions(-)
 ```
 
 ---
@@ -82,14 +83,28 @@ the guide can fix.
 
 **Merge risk: low.** Two lines in one JSX block; the behaviour lives in our own component.
 
-### 5. `.gitignore` — admit the documentation
+### 5. `components/classroom/ClassroomSurface.tsx` — a refusal is not a failure
+
+A student who opened a course they are not enrolled in read
+`Error: @openmaic/storage: document authorization required`, under a **Retry**
+button that can never succeed, because the refusal is correct and permanent. The
+error card now recognises an authorization refusal and says "You cannot open this
+course", with a way back to their own courses, and leaves every other error
+exactly as it was.
+
+The branch is additive and guarded by a regex over the error text, so an
+OpenMAIC deployment without accounts can never reach it.
+
+**Merge risk: low.** One conditional inside one error card.
+
+### 6. `.gitignore` — admit the documentation
 
 Upstream ignores `/docs`, but the instruction names `docs/ADMIN_MANUAL.md`,
 `docs/LEVEL2_DATABASE_SCHEMA.md` and others by path. A negation admits exactly those.
 
 **Merge risk: none.**
 
-### 6. `package.json`, `pnpm-lock.yaml` — two dependencies
+### 7. `package.json`, `pnpm-lock.yaml` — two dependencies
 
 `@supabase/ssr` and `@supabase/supabase-js`, for reading the session server-side and signing in
 from the browser.

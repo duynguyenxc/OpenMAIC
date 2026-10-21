@@ -1,0 +1,352 @@
+{
+ "id": "sc1",
+ "type": "slide",
+ "order": 1,
+ "title": "Lesson 1",
+ "actions": [
+  {
+   "id": "action_Vkvzis44",
+   "type": "spotlight",
+   "elementId": "text_XBev7wPH"
+  },
+  {
+   "id": "action_PICPe53A",
+   "text": "Hello, everyone. Today we will learn how realist evaluation explains why a program succeeds for some people or settings but not for others. We will build toward creating and checking a basic causal explanation.",
+   "type": "speech"
+  },
+  {
+   "id": "action_u82875_n",
+   "type": "spotlight",
+   "elementId": "text_5AqpVUzm"
+  },
+  {
+   "id": "action_jH-UlzuV",
+   "text": "Realist evaluation begins with a practical question: what works, for whom, in what circumstances, and why? This recognizes that programs do not automatically produce identical results across every population or setting.",
+   "type": "speech"
+  },
+  {
+   "id": "action_pbspsbMT",
+   "type": "spotlight",
+   "elementId": "text_BCEMJFaO"
+  },
+  {
+   "id": "action_UceDlXRv",
+   "text": "To answer that question, we use a Context–Mechanism–Outcome configuration, often shortened to CMO. Context describes the relevant circumstances, mechanism identifies the response or reasoning triggered in those circumstances, and outcome is the resulting change.",
+   "type": "speech"
+  },
+  {
+   "id": "action_PNCXDyZw",
+   "type": "spotlight",
+   "elementId": "text_fftQ5xwH"
+  },
+  {
+   "id": "action_FbKe5cZY",
+   "text": "A CMO configuration is a patterned explanation, not merely a list of factors. For example, after-school tutoring in a quiet room with a small group may help learners feel supported, increasing their confidence to persist and leading to more regular attendance and homework completion.",
+   "type": "speech"
+  },
+  {
+   "id": "action_6556XYUN",
+   "type": "spotlight",
+   "elementId": "text_Bckv93Yv"
+  },
+  {
+   "id": "action_dMqVXHwk",
+   "text": "Our learning goal is to construct and interpret a basic CMO explanation. Keep the central logic in mind: particular circumstances can activate particular responses, which then contribute to observable outcomes. Next, we will examine each of the three components more closely.",
+   "type": "speech"
+  }
+ ],
+ "content": {
+  "type": "slide",
+  "canvas": {
+   "id": "EBfe5V2XQC3yhFnF4FJVU",
+   "theme": {
+    "shadow": {
+     "h": 0,
+     "v": 0,
+     "blur": 10,
+     "color": "#000000"
+    },
+    "outline": {
+     "color": "#d14424",
+     "style": "solid",
+     "width": 2
+    },
+    "fontName": "Microsoft YaHei",
+    "fontColor": "#333333",
+    "themeColors": [
+     "#5b9bd5",
+     "#ed7d31",
+     "#a5a5a5",
+     "#ffc000",
+     "#4472c4"
+    ],
+    "backgroundColor": "#ffffff"
+   },
+   "elements": [
+    {
+     "id": "shape_NdxNMprq",
+     "top": 130,
+     "fill": "#173F5F",
+     "left": 80,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 840,
+     "height": 90,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "shape_Ti9PIKDJ",
+     "top": 239,
+     "fill": "#E8F1F8",
+     "left": 610,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 330,
+     "height": 46,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "shape_q6Mx9a10",
+     "top": 296,
+     "fill": "#EAF4FB",
+     "left": 60,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 280,
+     "height": 156,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "shape_9w4MxHrx",
+     "top": 296,
+     "fill": "#FFF4DF",
+     "left": 360,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 280,
+     "height": 156,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "shape_Vgc03pys",
+     "top": 296,
+     "fill": "#EAF7EF",
+     "left": 660,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 280,
+     "height": 156,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "shape_bcrEkwtI",
+     "top": 296,
+     "fill": "#2878A7",
+     "left": 60,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 280,
+     "height": 6,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "shape_yNIdwB12",
+     "top": 296,
+     "fill": "#E39A25",
+     "left": 360,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 280,
+     "height": 6,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "shape_eV8xcgXc",
+     "top": 296,
+     "fill": "#3A9561",
+     "left": 660,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 280,
+     "height": 6,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "shape_F8yDcWHk",
+     "top": 460,
+     "fill": "#E9EDF3",
+     "left": 60,
+     "path": "M 0 0 L 1 0 L 1 1 L 0 1 Z",
+     "type": "shape",
+     "width": 880,
+     "height": 52,
+     "rotate": 0,
+     "viewBox": [
+      1,
+      1
+     ],
+     "fixedRatio": false
+    },
+    {
+     "id": "text_XBev7wPH",
+     "top": 50,
+     "left": 60,
+     "type": "text",
+     "width": 880,
+     "height": 70,
+     "rotate": 0,
+     "content": "<p style=\"font-size:32px; font-weight:700;\">The Realist Evaluation Question</p>",
+     "defaultColor": "#17324D",
+     "defaultFontName": "Microsoft YaHei"
+    },
+    {
+     "id": "text_5AqpVUzm",
+     "top": 134,
+     "left": 100,
+     "type": "text",
+     "width": 800,
+     "height": 82,
+     "rotate": 0,
+     "content": "<p style=\"font-size:20px; text-align:center; font-weight:700;\">What works, for whom, in what circumstances—and why?</p><p style=\"font-size:16px; text-align:center;\">Results vary across settings and populations.</p>",
+     "defaultColor": "#FFFFFF",
+     "defaultFontName": "Microsoft YaHei"
+    },
+    {
+     "id": "text_BCEMJFaO",
+     "top": 233,
+     "left": 60,
+     "type": "text",
+     "width": 520,
+     "height": 58,
+     "rotate": 0,
+     "content": "<p style=\"font-size:24px; font-weight:700;\">Context–Mechanism–Outcome (CMO)</p>",
+     "defaultColor": "#17324D",
+     "defaultFontName": "Microsoft YaHei"
+    },
+    {
+     "id": "text_fftQ5xwH",
+     "top": 239,
+     "left": 625,
+     "type": "text",
+     "width": 300,
+     "height": 46,
+     "rotate": 0,
+     "content": "<p style=\"font-size:16px; text-align:center; font-weight:700;\">Patterned explanation—not a factor list</p>",
+     "defaultColor": "#285978",
+     "defaultFontName": "Microsoft YaHei"
+    },
+    {
+     "id": "text_Bd_Griy6",
+     "top": 318,
+     "left": 80,
+     "type": "text",
+     "width": 240,
+     "height": 112,
+     "rotate": 0,
+     "content": "<p style=\"font-size:20px; text-align:center; font-weight:700;\">Context</p><p style=\"font-size:16px; text-align:center;\">After-school tutoring</p><p style=\"font-size:16px; text-align:center;\">Quiet room + small group</p>",
+     "defaultColor": "#205F85",
+     "defaultFontName": "Microsoft YaHei"
+    },
+    {
+     "id": "text_iRYMxPxF",
+     "top": 318,
+     "left": 380,
+     "type": "text",
+     "width": 240,
+     "height": 112,
+     "rotate": 0,
+     "content": "<p style=\"font-size:20px; text-align:center; font-weight:700;\">Mechanism</p><p style=\"font-size:16px; text-align:center;\">Learners feel supported</p><p style=\"font-size:16px; text-align:center;\">Confidence to persist</p>",
+     "defaultColor": "#9A6414",
+     "defaultFontName": "Microsoft YaHei"
+    },
+    {
+     "id": "text_7DssVDC6",
+     "top": 318,
+     "left": 680,
+     "type": "text",
+     "width": 240,
+     "height": 112,
+     "rotate": 0,
+     "content": "<p style=\"font-size:20px; text-align:center; font-weight:700;\">Outcome</p><p style=\"font-size:16px; text-align:center;\">More regular attendance</p><p style=\"font-size:16px; text-align:center;\">Homework completion</p>",
+     "defaultColor": "#287347",
+     "defaultFontName": "Microsoft YaHei"
+    },
+    {
+     "id": "text_5WDTbweA",
+     "top": 463,
+     "left": 80,
+     "type": "text",
+     "width": 140,
+     "height": 46,
+     "rotate": 0,
+     "content": "<p style=\"font-size:16px; font-weight:700;\">LEARNING GOAL</p>",
+     "defaultColor": "#173F5F",
+     "defaultFontName": "Microsoft YaHei"
+    },
+    {
+     "id": "text_Bckv93Yv",
+     "top": 463,
+     "left": 220,
+     "type": "text",
+     "width": 700,
+     "height": 46,
+     "rotate": 0,
+     "content": "<p style=\"font-size:16px;\">Construct and interpret a basic CMO explanation</p>",
+     "defaultColor": "#34495E",
+     "defaultFontName": "Microsoft YaHei"
+    }
+   ],
+   "background": {
+    "type": "solid",
+    "color": "#F7F9FC"
+   },
+   "viewportSize": 1000,
+   "viewportRatio": 0.5625
+  },
+  "schemaVersion": 1
+ },
+ "stageId": "Tdm20whad",
+ "createdAt": 1791118977389,
+ "outlineId": "scene_1",
+ "updatedAt": 1791118977389
+}
