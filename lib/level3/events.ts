@@ -142,6 +142,90 @@ export async function projectCourseEvents(stageId: string): Promise<ProjectionRe
   };
 }
 
+/**
+ * Level 3B's own events.
+ *
+ * Responses, revisions and feedback are **ours**, not OpenMAIC's, so they are
+ * projected from our tables rather than from `runtime_records`. The rule is
+ * unchanged: one source row, one event, `source_runtime_record_id` naming it,
+ * and the unique index making a second run a no-op. Nothing is invented — if
+ * no student has answered anything, this writes nothing.
+ */
+export async function projectCourseAssessmentEvents(stageId: string): Promise<ProjectionResult> {
+  const pool = await level2Pool();
+  const { rows: courseRows } = await pool.query(
+    `SELECT c.id,
+            (SELECT sc.study_id FROM study_courses sc WHERE sc.course_id = c.id LIMIT 1) AS study_id
+       FROM courses c WHERE c.openmaic_stage_id = $1`,
+    [stageId],
+  );
+  const course = courseRows[0] as { id: string; study_id: string | null } | undefined;
+  if (!course) return { examined: 0, written: 0, skippedUnmapped: 0, unmappedKinds: [] };
+
+  let examined = 0;
+  let written = 0;
+
+  // A first answer and a revision are different events, because measuring
+  // learning change is the reason revisions are kept at all.
+  const { rows: responses } = await pool.query(
+    `SELECT id, learner_id, activity_id, attempt_number, parent_attempt_id,
+            response_type, submitted_at, length(response_text) AS characters
+       FROM learner_responses WHERE course_id = $1 ORDER BY submitted_at`,
+    [course.id],
+  );
+  for (const r of responses as Array<Record<string, any>>) {
+    examined += 1;
+    const result = await pool.query(
+      `INSERT INTO research_events
+         (study_id, course_id, learner_id, session_id, activity_id, event_type,
+          source_runtime_record_id, event_timestamp, sequence_number, structured_payload)
+       VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (source_runtime_record_id) DO NOTHING`,
+      [
+        course.study_id, course.id, r.learner_id, r.activity_id,
+        r.attempt_number > 1 ? 'RESPONSE_REVISION' : 'RESPONSE_SUBMITTED',
+        `response:${r.id}`, r.submitted_at, r.attempt_number,
+        {
+          responseType: r.response_type,
+          attemptNumber: r.attempt_number,
+          revisionOf: r.parent_attempt_id,
+          characters: Number(r.characters),
+        },
+      ],
+    );
+    written += result.rowCount ?? 0;
+  }
+
+  const { rows: feedback } = await pool.query(
+    `SELECT fe.id, fe.kind, fe.policy, fe.model, fe.shown_at, fe.created_at,
+            lr.learner_id, lr.activity_id, lr.attempt_number
+       FROM feedback_events fe JOIN learner_responses lr ON lr.id = fe.response_id
+      WHERE lr.course_id = $1 ORDER BY fe.created_at`,
+    [course.id],
+  );
+  for (const f of feedback as Array<Record<string, any>>) {
+    examined += 1;
+    const result = await pool.query(
+      `INSERT INTO research_events
+         (study_id, course_id, learner_id, session_id, activity_id, event_type,
+          source_runtime_record_id, event_timestamp, sequence_number, structured_payload)
+       VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (source_runtime_record_id) DO NOTHING`,
+      [
+        course.study_id, course.id, f.learner_id, f.activity_id,
+        // Generated and shown are different facts, and the instruction asks
+        // for both: "Record all generated feedback", and FEEDBACK_SHOWN.
+        f.shown_at ? 'FEEDBACK_SHOWN' : 'FEEDBACK_GENERATED',
+        `feedback:${f.id}`, f.created_at, f.attempt_number,
+        { kind: f.kind, policy: f.policy, model: f.model, shown: Boolean(f.shown_at) },
+      ],
+    );
+    written += result.rowCount ?? 0;
+  }
+
+  return { examined, written, skippedUnmapped: 0, unmappedKinds: [] };
+}
+
 /** Project every course in a study. Returns one result per course. */
 export async function projectStudyEvents(
   studyId: string,
@@ -155,7 +239,17 @@ export async function projectStudyEvents(
   );
   const out = [];
   for (const row of rows as Array<{ stageId: string }>) {
-    out.push({ stageId: row.stageId, result: await projectCourseEvents(row.stageId) });
+    const runtime = await projectCourseEvents(row.stageId);
+    const assessment = await projectCourseAssessmentEvents(row.stageId);
+    out.push({
+      stageId: row.stageId,
+      result: {
+        examined: runtime.examined + assessment.examined,
+        written: runtime.written + assessment.written,
+        skippedUnmapped: runtime.skippedUnmapped,
+        unmappedKinds: runtime.unmappedKinds,
+      },
+    });
   }
   return out;
 }

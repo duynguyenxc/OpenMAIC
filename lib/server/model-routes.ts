@@ -157,6 +157,12 @@ export const LLM_STAGES = [
   'maic-agent',
   'maic-agent-driver',
   'conversation-title',
+  // Level 3B: two genuinely new model stages, so an operator can route and
+  // budget assessment and feedback separately from teaching. Nothing else in
+  // OpenMAIC references them, and absent configuration they fall back exactly
+  // as every other stage does.
+  'level3-assessment',
+  'level3-feedback',
 ] as const;
 
 export type LlmStage = (typeof LLM_STAGES)[number];

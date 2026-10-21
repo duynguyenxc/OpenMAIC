@@ -184,3 +184,66 @@ they never get it.
 
 Being an instructor on a study's section does **not** give you access to the study, and you cannot
 export it — that is deliberate, and tested.
+
+---
+
+# Level 3B — rubrics, AI assessment, and feedback
+
+The **Rubrics and assessment** panel is at the bottom of *My courses*.
+
+## Making a rubric
+
+A rubric is a list of dimensions, each with a maximum score and, if you want, a description of what
+each score means. It has a **version**.
+
+Versions are not decoration. Once a rubric is published you cannot edit it — publishing the same
+title at the same version again is refused. To change it, publish `1.1`. That is what keeps a
+study's numbers comparable: nothing can be re-scored under a rubric that quietly changed.
+
+## Attaching it to an activity
+
+Choose a course, an activity, a rubric and a **feedback policy**:
+
+| Policy | When the student gets feedback |
+|---|---|
+| `OFF` | never |
+| `ON` | whenever it is asked for |
+| `AFTER_FIRST_RESPONSE` | only from their second attempt — the first answer stays a clean measurement |
+| `AFTER_SUBMISSION` | only once they have submitted |
+| `ON_REQUEST` | only when they ask |
+
+The same module can run in two courses with the same rubric and different policies. That is how a
+study compares conditions, and it needs no special setup.
+
+## Assessing an answer
+
+Every attempt appears in the list, not only the last one, with who wrote it and whether it is a
+revision.
+
+**Assess with AI** scores it against the rubric. You get a score per dimension, a **quotation from
+the student's own words** as evidence, and a confidence. The model used and the rubric version are
+stored with the result, so a score from today is still interpretable next year.
+
+## Reviewing — and why your score never disappears
+
+Press **Review** and you see the AI's scores and yours side by side.
+
+- **Accept** — you agree. The AI's score becomes the final one.
+- **Revise** — you give your own scores. They are stored **beside** the AI's, which is unchanged.
+- **Reject** — you discard the AI's judgement. It is still kept.
+
+In all three cases nothing is overwritten. That is deliberate: a record where your score replaced
+the AI's could never answer how often the two agreed, which is one of the things this platform
+exists to find out.
+
+Until a human has looked at it, **an AI score is not a final score**, and the panel says so.
+
+## Feedback
+
+**Generate feedback** produces one short piece aimed at the weakest part of that particular answer.
+It is given the student's earlier attempts and the feedback they have already had, and told not to
+repeat itself.
+
+Every piece generated is recorded, whether the student saw it or not. A student asking for feedback
+themselves is recorded as shown; one you generate to look at is recorded as generated. A researcher
+can tell the difference, which matters when measuring whether feedback changed anything.

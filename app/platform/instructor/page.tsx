@@ -25,6 +25,7 @@ import { CourseDialog } from '@/components/level2/course-dialog';
 import { DeleteCourseButton } from '@/components/level2/delete-course';
 import { PlatformShell } from '@/components/level2/platform-shell';
 import { TemplateLibrary } from '@/components/level3/template-library';
+import { AssessmentPanel } from '@/components/level3/assessment-panel';
 import { formatWhen, useCourses, useMe, type CourseSummary } from '@/lib/level2/use-platform';
 
 type Filter = 'active' | 'published' | 'draft' | 'archived';
@@ -237,6 +238,9 @@ export default function InstructorDashboard() {
 
       {/* Level 3A: publish a module, or run somebody else's. */}
       <TemplateLibrary courses={courses} onChanged={reload} />
+
+      {/* Level 3B: rubrics, AI assessment, human review, feedback. */}
+      <AssessmentPanel courses={courses} />
 
       <CourseDialog
         course={open?.course ?? null}

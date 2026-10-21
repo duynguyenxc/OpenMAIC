@@ -332,3 +332,56 @@ decision rather than a command.
   unexercised.
 - **Random assignment is deliberately absent**: *"Do NOT implement automatic random assignment
   until explicitly requested."*
+
+---
+
+## L7 — 3A's documentation, and Level 3B (2026-10-21)
+
+Two pieces of work. The first was a debt: 3A was tested and deployed while six documents the
+instruction names were missing, and reporting 3A as done while that was true would have been a lie
+by omission. `API.md`, `DEPLOYMENT.md`, `DATABASE_SCHEMA.md` and `EXPERIMENT_CONFIGURATION.md` are
+written, and the ADMIN and INSTRUCTOR manuals — which had not one word about Level 3 — now carry
+institutions, studies, conditions, participants and consent on one side and publishing and cloning
+modules on the other.
+
+**Then 3B**, in the instruction's own order: rubric management, AI assessment, human review,
+adaptive feedback, response revision tracking.
+
+**The rule the whole sublevel is built on** is one sentence of the instruction's:
+*"Do NOT overwrite instructor/human ratings."* So an assessment row carries `assessor_kind`, a
+review records what a human decided **about** an AI assessment without touching it, and the final
+score is **derived** — the human's if one exists, the AI's if a human accepted it, otherwise none.
+An unreviewed AI score is not a final score, and the interface says so in those words. A test
+counts the AI's scores before and after a revision and asserts they are unchanged.
+
+Rubrics are versioned and immutable once published, because *"store the rubric version used for
+each assessment"* is impossible if a rubric can be edited under a finished one. Feedback is a
+service beside the classroom, never inside it, and the policy refuses rather than improvises:
+`AFTER_FIRST_RESPONSE` declines on attempt 1 because the first answer is the measurement.
+Revisions are new rows pointing at their parent, never updates.
+
+**42 checks, 0 failures, with real model calls.** `SKIP_LLM=1` runs the 28 that do not need one.
+Levels 2 and 3A still pass: **58 + 46 + 42 = 146**.
+
+### Two things this cost
+
+- **No model could be resolved.** The classroom gets its model from the browser; a server-side
+  service has none, and this deployment had `DEFAULT_MODEL` empty. Rather than set a global default
+  and change how the classroom behaves, two new stages — `level3-assessment`, `level3-feedback` —
+  were added to OpenMAIC's `LLM_STAGES` and routed through `MODEL_ROUTES`. Two strings in one
+  upstream file, recorded in `UPSTREAM_DELTA.md`, and an operator can now budget assessment apart
+  from teaching.
+- The dev server had to be restarted **again** for the route change, for the same reason as last
+  time: configuration read at process start is not hot-reloaded.
+
+### Open, after this session
+
+- **3C and 3D not started** — knowledge resources, retrieval, the optional KG provider, bounded
+  agents, provenance; then handwriting, audio, LMS.
+- **Usage and cost are still not counted.** 3B spends tokens and records the model per assessment,
+  but nothing aggregates usage by course, instructor, study or institution.
+- **`MODEL_ROUTES` is set locally and not yet on Vercel**, so assessment and feedback will fail on
+  the deployment until it is. That is a deliberate stopping point: it is an operator's decision
+  which model their money runs.
+- **No automatic assessment.** An instructor presses the button, because assessment costs money and
+  a study design decides when it happens.

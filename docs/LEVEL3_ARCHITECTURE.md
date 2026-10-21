@@ -1,6 +1,6 @@
 # Level 3 — architecture
 
-**Duy Nguyen · 21 October 2026 · sublevel 3A delivered, 3B–3D not started**
+**Duy Nguyen · 21 October 2026 · sublevels 3A and 3B delivered, 3C–3D not started**
 
 Instruction v3 is explicit about pace: *"Do NOT attempt all Level-3 features simultaneously"*,
 and *"After EACH sublevel: TEST, DOCUMENT, DEPLOY TO STAGING, REPORT."* This document describes
@@ -13,9 +13,9 @@ and *"After EACH sublevel: TEST, DOCUMENT, DEPLOY TO STAGING, REPORT."* This doc
                         +
             Secure multi-user platform  Level 2 — identity, roles, courses
                         +
-            Research instrumentation    Level 3A — this document
+            Research instrumentation    Level 3A — institutions, studies, events
                         +
-      Assessment / feedback services    Level 3B — not started
+      Assessment / feedback services    Level 3B — rubrics, assessment, feedback
                         +
               Knowledge services        Level 3C — not started
 ```
@@ -35,6 +35,21 @@ fails."* Nothing in the teaching path calls anything added in 3A.
 | What learners actually did | `research_events`, projected from OpenMAIC's `runtime_records` |
 | Who did what, administratively | `audit_log` |
 | Code | `lib/level3/*`, `app/api/level3/*`, `app/platform/researcher`, `components/level3/*` |
+
+## What 3B added
+
+| Concern | Where it lives |
+|---|---|
+| Rubrics, versioned and immutable once published | `rubrics`, `rubric_dimensions`, `rubric_levels` |
+| A rubric and a feedback policy per activity | `rubric_assignments` |
+| Answers and their revisions | `learner_responses` (`attempt_number`, `parent_attempt_id`) |
+| AI and human judgements, kept apart | `assessments` (`assessor_kind`), `assessment_scores` |
+| What a human decided about an AI score | `assessment_reviews` |
+| Every piece of feedback generated | `feedback_events` |
+| Services | `lib/level3/assessment.ts`, `lib/level3/feedback.ts` |
+
+`docs/RUBRIC_SYSTEM.md` has the detail. The one upstream file 3B touches is
+`lib/server/model-routes.ts`, two strings, recorded in `UPSTREAM_DELTA.md`.
 
 **No upstream OpenMAIC file was touched by 3A.** The delta in `docs/UPSTREAM_DELTA.md` is
 unchanged from Level 2 — still seven files — and the whole research layer is additive.
@@ -80,15 +95,14 @@ excluded.
 
 Named here so nobody has to discover it by looking:
 
-- **3B** — rubrics, AI assessment, human review and override, adaptive feedback, response
-  revisions.
 - **3C** — knowledge resources, document and vector retrieval, the optional KG provider, bounded
   agents, provenance.
 - **3D** — handwriting and audio pipelines, LMS/Canvas, advanced analytics.
 - **Random assignment to conditions.** *"Do NOT implement automatic random assignment until
   explicitly requested."* Conditions are set by an administrator per section.
-- **Usage and cost monitoring.** Deferred with 3B, where the first service that spends tokens on a
-  researcher's behalf arrives.
+- **Usage and cost monitoring.** Still deferred: 3B spends tokens, and what it does not yet do is
+  count them. Per-assessment model and prompt version are recorded; aggregate usage by course,
+  instructor, study and institution is not.
 - **Retention policy.** The consent states exist; automatic deletion does not, deliberately —
   *"Do not permanently delete records automatically without explicit policy."*
 
@@ -108,8 +122,10 @@ Named here so nobody has to discover it by looking:
 | `UPSTREAM_DELTA.md` | the seven upstream files, unchanged by Level 3A |
 | `ADMIN_MANUAL.md`, `INSTRUCTOR_MANUAL.md`, `STUDENT_MANUAL.md`, `RESEARCHER_MANUAL.md` | per role |
 
-`RUBRIC_SYSTEM.md` and `KNOWLEDGE_RESOURCE_ARCHITECTURE.md` are not written, because 3B and 3C are
-not built. Writing them now would describe something that does not exist.
+| `RUBRIC_SYSTEM.md` | rubrics, assessment, review, feedback, revisions |
+
+`KNOWLEDGE_RESOURCE_ARCHITECTURE.md` is not written, because 3C is not built. Writing it now would
+describe something that does not exist.
 
 ## Tests
 
@@ -117,6 +133,7 @@ not built. Writing them now would describe something that does not exist.
 |---|---|---|
 | `scripts/level2-security-tests.mjs` | **58** | everything Level 2 guarantees, re-run as a regression gate |
 | `scripts/level3-research-tests.mjs` | **46** | the end-to-end scenario v3 specifies, with real requests |
+| `scripts/level3b-assessment-tests.mjs` | **42** | rubrics, assessment, review, feedback, revisions — with **real model calls**. `SKIP_LLM=1` runs the 28 that do not need one |
 
 Both suites now name their fixtures after the run and remove them afterwards, because a suite that
 leaves courses behind fills a platform with sections nobody can tell apart.

@@ -97,14 +97,33 @@ OpenMAIC deployment without accounts can never reach it.
 
 **Merge risk: low.** One conditional inside one error card.
 
-### 6. `.gitignore` — admit the documentation
+### 6. `lib/server/model-routes.ts` — two new model stages
+
+Two entries appended to `LLM_STAGES`: `level3-assessment` and `level3-feedback`.
+
+Level 3B's assessment and feedback run **server-side**, where no browser supplies a model — the
+classroom resolves its model from the client, and a service has none. They could have borrowed an
+existing stage key, but they are genuinely different work with different cost and quality
+requirements, and an operator should be able to route and budget them apart from teaching:
+
+```
+MODEL_ROUTES='{"level3-assessment":{"model":"openai:gpt-4.1"},
+               "level3-feedback":{"model":"openai:gpt-4.1-mini"}}'
+```
+
+Nothing else in OpenMAIC references either key, and an unrouted stage falls back exactly as every
+other one does.
+
+**Merge risk: very low.** Two strings appended to a `const` array.
+
+### 7. `.gitignore` — admit the documentation
 
 Upstream ignores `/docs`, but the instruction names `docs/ADMIN_MANUAL.md`,
 `docs/LEVEL2_DATABASE_SCHEMA.md` and others by path. A negation admits exactly those.
 
 **Merge risk: none.**
 
-### 7. `package.json`, `pnpm-lock.yaml` — two dependencies
+### 8. `package.json`, `pnpm-lock.yaml` — two dependencies
 
 `@supabase/ssr` and `@supabase/supabase-js`, for reading the session server-side and signing in
 from the browser.

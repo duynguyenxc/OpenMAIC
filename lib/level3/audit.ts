@@ -26,7 +26,11 @@ export type AuditAction =
   | 'STUDY_CREATED'
   | 'STUDY_COURSE_ADDED'
   | 'CONSENT_CHANGED'
-  | 'DATA_EXPORTED';
+  | 'DATA_EXPORTED'
+  | 'RUBRIC_CHANGED'
+  | 'RUBRIC_ATTACHED'
+  | 'ASSESSMENT_REVIEWED'
+  | 'AGENT_CONFIGURATION_CHANGED';
 
 export async function audit(
   actor: { profileId?: string; email?: string } | null,

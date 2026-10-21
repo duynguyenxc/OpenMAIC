@@ -81,3 +81,42 @@ interface.
 
 **Sign out** at the top right ends your session. Use it on a shared or public computer; otherwise
 the next person at that browser would still be signed in as you.
+
+---
+
+# Answering and revising (Level 3B)
+
+Some activities ask you to write an answer rather than chat.
+
+**Your answers are never overwritten.** When you revise one, the new version is stored beside the
+old one and both are kept. Your instructor can see every attempt. That is on purpose: how an answer
+changed is often more interesting than the final one.
+
+## Feedback
+
+Whether you can get feedback, and when, is set by your instructor for each activity. You may find:
+
+- feedback whenever you ask for it;
+- feedback only after your first attempt — so that first answer is yours alone;
+- feedback only after you submit;
+- no feedback at all.
+
+If feedback is not available the system says so in a sentence, rather than failing silently.
+
+Feedback aims at the weakest part of what you actually wrote, and it will not simply repeat what it
+told you last time. It will not give you the answer.
+
+## Being scored
+
+Your answer may be scored against a rubric — a list of things the work is judged on. A first score
+may come from the AI, but **it is not final until a human has looked at it**. Your instructor can
+accept it, change it, or throw it away, and their decision is what counts.
+
+## What is recorded about you
+
+Your answers, your revisions, the feedback you were given, and the scores. Your instructor sees
+this for their own course and nobody else's.
+
+If your course is part of a research study, researchers see this data **without your name**, as a
+participant number, and only if you have consented. Using the platform for your course and being
+part of a study are separate things.
