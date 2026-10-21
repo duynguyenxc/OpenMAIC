@@ -74,6 +74,16 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: `frame-ancestors ${frameAncestors}`,
           },
+          // Level 2: three standard headers the deployment was missing.
+          // Cheap, and nothing observed depends on their absence.
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Permissions-Policy',
+            // The classroom speaks and listens, so microphone stays with us;
+            // nothing here needs a camera, a location or a payment handler.
+            value: 'camera=(), geolocation=(), payment=(), microphone=(self)',
+          },
         ],
       },
     ];

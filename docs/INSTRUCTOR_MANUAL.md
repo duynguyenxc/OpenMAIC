@@ -4,6 +4,24 @@
 
 ---
 
+![My courses, as an instructor sees it](screenshots/03-instructor-my-courses.jpg)
+
+*The instructor dashboard. One row per course with its id, how many students are on it and when it
+was last used; search, a status filter and a sort above; and on each row Students, Results, Open,
+Edit, Rename, Publish, Duplicate and Delete. "+ New course" opens the OpenMAIC workspace, where a
+course you make becomes yours automatically.*
+
+![The students on one course](screenshots/04-instructor-students.jpg)
+
+*Clicking Students opens everything about that course over the page. Add a student by email;
+Remove turns their access off without destroying their work, and Restore turns it back on.*
+
+![The teaching team](screenshots/05-instructor-teaching-team.jpg)
+
+*The second tab shares a course with a colleague. An editor can change the course and see its
+students; a viewer can only read. Only the owner can enrol students, publish or delete, and the
+owner cannot be removed or demoted here — handing a course over is a separate, deliberate act.*
+
 ## Signing in
 
 Go to `/platform` and sign in with your email and password. You land on your instructor dashboard.

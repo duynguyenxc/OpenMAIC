@@ -4,6 +4,22 @@
 
 ---
 
+![The sign-in page](screenshots/01-sign-in.jpg)
+
+*Signing in. There is no sign-up link: an administrator makes your account. If you forget your
+password, they set a new one — there is no self-service reset.*
+
+![My courses, as a student sees it](screenshots/02-student-my-courses.jpg)
+
+*What a student sees after signing in: only the courses they are enrolled in, each with the
+instructor's name, when it was last used, and the course id. There is no button to make, edit or
+delete anything, and no sign of any other student.*
+
+![Trying to open somebody else's course](screenshots/07-refused-not-enrolled.jpg)
+
+*Typing the address of a course you are not enrolled in. The server refuses it — this is not the
+page hiding a button — and says so in a sentence.*
+
 ## Signing in
 
 Go to `/platform` and sign in with the email and password your instructor or administrator gave

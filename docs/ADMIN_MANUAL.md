@@ -7,6 +7,13 @@ An administrator manages accounts and can see every course. Everything here is d
 
 ---
 
+![Users and every course](screenshots/06-admin-users-and-courses.jpg)
+
+*The administrator dashboard: every account with its role and status, searchable, and every course
+on the platform with its owner, co-instructors and student count. Manage opens the same panel the
+instructor uses, on any course, which is how an administrator enrols a student or assigns an
+instructor. Your own row is switched off, so the last administrator cannot demote themselves.*
+
 ## Signing in
 
 Go to `/platform`. If you are not signed in you are sent to the sign-in page. Enter your email and

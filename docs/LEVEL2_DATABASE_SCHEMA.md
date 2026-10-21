@@ -10,6 +10,73 @@ its ownership row must be able to commit together.
 
 ---
 
+
+## Entity relationship diagram
+
+The instruction asks for one. Four tables are ours; `auth.users` belongs to Supabase and
+`document_stages`, `runtime_sessions` and `runtime_records` belong to OpenMAIC. **No foreign key
+crosses into OpenMAIC's tables** — the join is by `openmaic_stage_id`, so OpenMAIC can migrate its
+own storage without breaking ours, which is the whole reason the level could be built in seven
+files.
+
+```mermaid
+erDiagram
+    AUTH_USERS   ||--|| USER_PROFILES      : "auth_user_id"
+    USER_PROFILES ||--o{ COURSES           : "owns"
+    USER_PROFILES ||--o{ COURSE_INSTRUCTORS: "teaches"
+    USER_PROFILES ||--o{ ENROLLMENTS       : "studies"
+    COURSES      ||--o{ COURSE_INSTRUCTORS : "has team"
+    COURSES      ||--o{ ENROLLMENTS        : "has roll"
+    COURSES      }o..|| DOCUMENT_STAGES    : "openmaic_stage_id (no FK)"
+    DOCUMENT_STAGES ||..o{ RUNTIME_SESSIONS: "stage_id"
+    RUNTIME_SESSIONS ||--o{ RUNTIME_RECORDS: "session"
+
+    USER_PROFILES {
+        uuid id PK
+        uuid auth_user_id FK "unique, -> auth.users"
+        text email
+        text display_name
+        text role "ADMIN | INSTRUCTOR | STUDENT"
+        text external_identifier "JSU-00001"
+        text institution
+        text status "ACTIVE | INACTIVE | PENDING"
+    }
+    COURSES {
+        uuid id PK
+        text openmaic_stage_id "unique, joins OpenMAIC"
+        text title
+        uuid owner_instructor_id FK
+        text status "DRAFT | PUBLISHED | ARCHIVED"
+    }
+    COURSE_INSTRUCTORS {
+        uuid course_id PK_FK
+        uuid instructor_id PK_FK
+        text permission "OWNER | EDITOR | VIEWER"
+        uuid added_by FK
+    }
+    ENROLLMENTS {
+        uuid course_id PK_FK
+        uuid student_id PK_FK
+        text status "ACTIVE | INACTIVE | COMPLETED"
+        uuid enrolled_by FK
+    }
+    RUNTIME_SESSIONS {
+        text stage_id "the course"
+        text learner_key "user:<auth_user_id>"
+        text kind "chat | quiz | pbl"
+    }
+```
+
+**The two rules the diagram cannot show.**
+
+1. A partial unique index on `course_instructors (course_id) WHERE permission = 'OWNER'` allows
+   exactly one owner per course. Since 2026-10-21 the API also refuses to demote that owner, after
+   an owner locked themselves out of their own course by offering their own address to the
+   co-instructor endpoint.
+2. `learner_key` is always `'user:' || auth_user_id`, derived on the server from the session. The
+   browser never supplies it, which is what makes a learner record attributable at all.
+
+
 ## 1. Entity relationships
 
 ```

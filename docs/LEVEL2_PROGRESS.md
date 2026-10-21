@@ -263,9 +263,9 @@ Checked against the list in the instruction, not against this tracker, so the cr
 | 15 | Instructor can export their course data | ✅ CSV and JSON |
 | 16 | Administrator sees all courses | ✅ |
 | 17 | Administrator manages instructors/students | ✅ role, status, approval |
-| 18 | API authorization tests pass | ✅ 41 passed, 0 failed |
+| 18 | API authorization tests pass | ✅ **56 passed, 0 failed** (41 until 2026-10-21) |
 | 19 | **Level-1 learning features continue working** | ✅ **verified: a course was generated while signed in as an instructor** |
-| 20–22 | Admin / Instructor / Student manuals | ⚠️ **written, but with no screenshots** — see below |
+| 20–22 | Admin / Instructor / Student manuals | ✅ with screenshots from the running app (2026-10-21) |
 
 **On 19.** This was unverified until now, and it was the largest regression risk in the whole level:
 if replacing the identity source had broken generation, everything else would have been beside the
@@ -294,3 +294,22 @@ found six capabilities named in the instruction and absent from the build: cours
 **renaming** a course, the administrator's **AUTHORIZATION** group, and any interface for
 **co-instructors** (the API exists and is tested; nothing calls it). None of them weakens the
 authorization model; all of them are things a tester reaches for in the first five minutes.
+
+---
+
+## Corrections and additions, 2026-10-21
+
+**20–22 restored.** The three manuals now carry screenshots from the running application, and
+`LEVEL2_DATABASE_SCHEMA.md` has the ER diagram the instruction asks for. The earlier ✅ was
+withdrawn on 19 October because neither existed; it is earned now.
+
+**18 is a larger number than it was.** The suite went from 41 checks to 56. The fifteen new ones
+are shapes the first set did not have: a user damaging **their own** record, the **same request
+twice**, **boundary values**, **honest answers**, and **deletion**. That gap was not academic — it
+hid a bug that cost an owner their own course.
+
+**Capabilities the 22-item list never asked about, now built.** Course **deletion** (none existed),
+**creation** from the dashboard once an instructor owns a course, **renaming**, the administrator's
+**AUTHORIZATION** group, and an interface for **co-instructors**. All five are named in the
+instruction's prose and none of them was a line in its checklist, which is why they went missing
+while every box was ticked.
