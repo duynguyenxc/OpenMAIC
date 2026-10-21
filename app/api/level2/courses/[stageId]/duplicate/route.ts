@@ -20,6 +20,7 @@
  */
 import { requireCourseInstructor } from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
+import { titleProblem } from '@/lib/level2/validation';
 import { apiError, json } from '@/lib/level2/route-helpers';
 import { withRequestOwner } from '@/lib/server/identity/with-owner';
 import { getOwnerScopedDocumentStore } from '@/lib/server/agent-runtime/owner-scoped-documents';
@@ -50,11 +51,50 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const source = await store.loadDocument(stageId);
       if (!source) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
 
-      const copyId = newStageId();
       const title =
         typeof body.title === 'string' && body.title.trim()
           ? body.title.trim()
           : `${source.stage.name ?? 'Course'} (copy)`;
+
+      const problem = titleProblem(title);
+      if (problem) return apiError(400, 'INVALID_TITLE', problem, headers);
+
+      // Two clicks used to produce two courses, and with no way to delete one
+      // of them the mistake was permanent. A copy of the same source, with the
+      // same title, by the same person, moments ago, is the same request.
+      //
+      // The check has to be serialised or it races itself: two requests a few
+      // milliseconds apart each looked, each saw nothing, and each created a
+      // course. An advisory lock on (owner, title) makes the second wait for
+      // the first to finish, so it sees the row and returns it. The lock is
+      // released in `finally`, and it is advisory, so nothing is blocked if
+      // this process dies holding it.
+      const pool = await level2Pool();
+      const lockKey = `duplicate:${principal.ownerId}:${title}`;
+      const lock = await pool.connect();
+      await lock.query('SELECT pg_advisory_lock(hashtext($1))', [lockKey]);
+      try {
+      const { rows: recent } = await pool.query(
+        `SELECT c.openmaic_stage_id AS "stageId", c.title
+           FROM courses c
+           JOIN user_profiles up ON up.id = c.owner_instructor_id
+          WHERE c.title = $1
+            AND up.auth_user_id::text = $2
+            AND c.created_at > now() - interval '15 seconds'
+          ORDER BY c.created_at DESC
+          LIMIT 1`,
+        [title, (principal.ownerId ?? '').replace(/^user:/, '')],
+      );
+      if (recent[0]) {
+        const already = recent[0] as { stageId: string; title: string };
+        return json(
+          { stageId: already.stageId, title: already.title, copiedFrom: stageId, deduplicated: true },
+          200,
+          headers,
+        );
+      }
+
+      const copyId = newStageId();
 
       const now = Date.now();
       // Every scene carries the id of the document it belongs to, and the
@@ -67,10 +107,13 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       } as typeof source);
 
       // The hook created the row with a placeholder title; give it the real one.
-      const pool = await level2Pool();
       await pool.query(`UPDATE courses SET title = $2 WHERE openmaic_stage_id = $1`, [copyId, title]);
 
       return json({ stageId: copyId, title, copiedFrom: stageId }, 201, headers);
+      } finally {
+        await lock.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]).catch(() => {});
+        lock.release();
+      }
     } catch (error) {
       const { AuthorizationError } = await import('@/lib/level2/authorization');
       if (error instanceof AuthorizationError) {

@@ -1,6 +1,7 @@
 /** Level 2 — co-instructors. Listing: any instructor on the course. Changing: OWNER. */
 import { requireCourseInstructor, requireCourseOwner } from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
+import { looksLikeEmail } from '@/lib/level2/validation';
 import { apiError, json, withOwner } from '@/lib/level2/route-helpers';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,9 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     if (typeof body.email !== 'string' || !body.email.trim()) {
       return apiError(400, 'EMAIL_REQUIRED', 'an instructor email is required', headers);
     }
+    if (!looksLikeEmail(body.email)) {
+      return apiError(400, 'MALFORMED_EMAIL', 'that is not an email address', headers);
+    }
     // OWNER is not shareable: the partial unique index allows exactly one, and
     // transferring ownership is a different operation from adding a colleague.
     const permission = typeof body.permission === 'string' ? body.permission : 'EDITOR';
@@ -54,6 +58,30 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       return apiError(400, 'NOT_AN_INSTRUCTOR', 'students cannot be co-instructors', headers);
     }
 
+    // The owner may not be given a lesser permission here. Without this, an
+    // owner who offered their own address as a co-instructor had the upsert
+    // below overwrite OWNER with EDITOR, leaving the course with no owner at
+    // all and locking them out of their own course: every owner-gated call
+    // then answers 403, and only an owner may repair the owner row. Found by
+    // adversarial testing on 2026-10-21; see docs/LEVEL2_UPGRADE_PLAN.md S1-1.
+    // Handing the course to someone else is a different, deliberate operation:
+    // POST /api/level2/courses/<id>/owner.
+    const { rows: ownerRows } = await pool.query(
+      `SELECT 1
+         FROM course_instructors ci
+         JOIN courses c ON c.id = ci.course_id
+        WHERE c.openmaic_stage_id = $1 AND ci.instructor_id = $2 AND ci.permission = 'OWNER'`,
+      [stageId, invitee.id],
+    );
+    if (ownerRows[0]) {
+      return apiError(
+        409,
+        'OWNER_CANNOT_BE_DEMOTED',
+        'that account owns this course; transfer ownership instead of adding it as a co-instructor',
+        headers,
+      );
+    }
+
     const { rows: courses } = await pool.query(
       `SELECT id FROM courses WHERE openmaic_stage_id = $1`,
       [stageId],
@@ -64,7 +92,8 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     await pool.query(
       `INSERT INTO course_instructors (course_id, instructor_id, permission, added_by)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT (course_id, instructor_id) DO UPDATE SET permission = EXCLUDED.permission`,
+       ON CONFLICT (course_id, instructor_id) DO UPDATE SET permission = EXCLUDED.permission
+         WHERE course_instructors.permission <> 'OWNER'`,
       [courseId, invitee.id, permission, actor.profileId],
     );
     return json({ email: body.email, permission }, 200, headers);

@@ -8,6 +8,7 @@
  */
 import { requireCourseInstructor, requireCourseOwner } from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
+import { looksLikeEmail } from '@/lib/level2/validation';
 import { apiError, json, withOwner } from '@/lib/level2/route-helpers';
 
 export const dynamic = 'force-dynamic';
@@ -51,6 +52,11 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     if (typeof email !== 'string' || !email.trim()) {
       return apiError(400, 'EMAIL_REQUIRED', 'a student email is required', headers);
     }
+    if (!looksLikeEmail(email)) {
+      // Reporting a typo as "no account with that email" sends the reader
+      // looking for an account that was never the problem.
+      return apiError(400, 'MALFORMED_EMAIL', 'that is not an email address', headers);
+    }
 
     const pool = await level2Pool();
     const { rows: students } = await pool.query(
@@ -66,6 +72,15 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     const courseId = await courseIdFor(stageId);
     if (!courseId) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
 
+    // What happened matters to the reader: a first enrolment, a student
+    // brought back after being deactivated, and a student who was already on
+    // the course all used to report the identical "Enrolled ...".
+    const { rows: before } = await pool.query(
+      `SELECT status FROM enrollments WHERE course_id = $1 AND student_id = $2`,
+      [courseId, student.id],
+    );
+    const previous = (before[0] as { status?: string } | undefined)?.status;
+
     await pool.query(
       `INSERT INTO enrollments (course_id, student_id, status, enrolled_by)
        VALUES ($1, $2, 'ACTIVE', $3)
@@ -73,7 +88,10 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
          DO UPDATE SET status = 'ACTIVE', enrolled_by = EXCLUDED.enrolled_by`,
       [courseId, student.id, actor.profileId],
     );
-    return json({ enrolled: email, status: 'ACTIVE' }, 200, headers);
+
+    const outcome =
+      previous === undefined ? 'enrolled' : previous === 'ACTIVE' ? 'already-enrolled' : 'reactivated';
+    return json({ enrolled: email.trim(), status: 'ACTIVE', outcome }, 200, headers);
   });
 }
 
