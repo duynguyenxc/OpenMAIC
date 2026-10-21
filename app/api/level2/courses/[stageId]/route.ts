@@ -2,6 +2,7 @@
 import { requireCourseOwner } from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 import { titleProblem } from '@/lib/level2/validation';
+import { titleTaken } from '@/lib/level2/course-titles';
 import { apiError, json, withOwner } from '@/lib/level2/route-helpers';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,24 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
       // every row of the dashboard and every line of the export.
       const problem = titleProblem(body.title);
       if (problem) return apiError(400, 'INVALID_TITLE', problem, headers);
+
+      // The person typed this name. Quietly turning it into something else
+      // would be worse than telling them it is taken.
+      const pool0 = await level2Pool();
+      const { rows: owner } = await pool0.query(
+        `SELECT owner_instructor_id AS "ownerId" FROM courses WHERE openmaic_stage_id = $1`,
+        [stageId],
+      );
+      const ownerId = (owner[0] as { ownerId?: string } | undefined)?.ownerId;
+      if (ownerId && (await titleTaken(pool0, ownerId, body.title, stageId))) {
+        return apiError(
+          409,
+          'TITLE_IN_USE',
+          'that instructor already has a course with this name; pick another',
+          headers,
+        );
+      }
+
       values.push(body.title.trim());
       updates.push(`title = $${values.length}`);
     }

@@ -21,6 +21,7 @@
 import { requireCourseInstructor } from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 import { titleProblem } from '@/lib/level2/validation';
+import { freeTitleNear } from '@/lib/level2/course-titles';
 import { apiError, json } from '@/lib/level2/route-helpers';
 import { withRequestOwner } from '@/lib/server/identity/with-owner';
 import { getOwnerScopedDocumentStore } from '@/lib/server/agent-runtime/owner-scoped-documents';
@@ -51,12 +52,28 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const source = await store.loadDocument(stageId);
       if (!source) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
 
-      const title =
+      // The name to copy from is the platform's, not the document's. Renaming
+      // a course writes to `courses.title` and leaves OpenMAIC's own
+      // `stage.name` alone — deliberately, so that renaming cannot fail
+      // halfway across two stores — so the two drift apart. Taking the
+      // document's name here produced "Course A (copy)" from a course the
+      // instructor sees as "Demo 1 — Realist Evaluation", which is the sort of
+      // small lie that makes a product feel untrustworthy.
+      const pool = await level2Pool();
+      const { rows: sourceRow } = await pool.query(
+        `SELECT title, owner_instructor_id AS "ownerId"
+           FROM courses WHERE openmaic_stage_id = $1`,
+        [stageId],
+      );
+      const sourceCourse = sourceRow[0] as { title?: string; ownerId?: string } | undefined;
+      const platformTitle = sourceCourse?.title ?? source.stage.name ?? 'Course';
+
+      const askedFor =
         typeof body.title === 'string' && body.title.trim()
           ? body.title.trim()
-          : `${source.stage.name ?? 'Course'} (copy)`;
+          : `${platformTitle} (copy)`;
 
-      const problem = titleProblem(title);
+      const problem = titleProblem(askedFor);
       if (problem) return apiError(400, 'INVALID_TITLE', problem, headers);
 
       // Two clicks used to produce two courses, and with no way to delete one
@@ -69,8 +86,7 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       // the first to finish, so it sees the row and returns it. The lock is
       // released in `finally`, and it is advisory, so nothing is blocked if
       // this process dies holding it.
-      const pool = await level2Pool();
-      const lockKey = `duplicate:${principal.ownerId}:${title}`;
+      const lockKey = `duplicate:${principal.ownerId}:${askedFor}`;
       const lock = await pool.connect();
       await lock.query('SELECT pg_advisory_lock(hashtext($1))', [lockKey]);
       try {
@@ -78,12 +94,12 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         `SELECT c.openmaic_stage_id AS "stageId", c.title
            FROM courses c
            JOIN user_profiles up ON up.id = c.owner_instructor_id
-          WHERE c.title = $1
+          WHERE (c.title = $1 OR c.title LIKE $1 || ' %')
             AND up.auth_user_id::text = $2
             AND c.created_at > now() - interval '15 seconds'
           ORDER BY c.created_at DESC
           LIMIT 1`,
-        [title, (principal.ownerId ?? '').replace(/^user:/, '')],
+        [askedFor, (principal.ownerId ?? '').replace(/^user:/, '')],
       );
       if (recent[0]) {
         const already = recent[0] as { stageId: string; title: string };
@@ -93,6 +109,13 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
           headers,
         );
       }
+
+      // "X (copy)" is generated, not typed, so it is numbered until free:
+      // "X (copy)", "X (copy) 2", "X (copy) 3". Titles are unique per owner.
+      const ownerProfileId = sourceCourse?.ownerId;
+      const title = ownerProfileId
+        ? await freeTitleNear(pool, ownerProfileId, askedFor)
+        : askedFor;
 
       const copyId = newStageId();
 

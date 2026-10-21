@@ -17,6 +17,7 @@ import type {
   Queryable,
 } from '@/lib/server/persistence-hooks';
 import { authUserIdFromOwnerId } from './auth-method';
+import { freeTitleNear } from './course-titles';
 import type { Role } from './db';
 
 async function profileFor(
@@ -67,12 +68,17 @@ export const level2PersistenceHooks: PersistenceHooks = {
     const profile = await profileFor(tx, actor.ownerId);
     if (!profile) throw new Error('level2: course created by an owner with no profile');
 
+    // Titles are unique per owner since 2026-10-21, and this one is generated
+    // rather than typed, so it is numbered until it is free. Failing a course
+    // creation over a placeholder nobody chose would be absurd.
+    const placeholder = await freeTitleNear(tx, profile.id, 'Untitled course');
+
     const { rows } = await tx.query(
       `INSERT INTO courses (openmaic_stage_id, title, owner_instructor_id, status)
        VALUES ($1, $2, $3, 'DRAFT')
        ON CONFLICT (openmaic_stage_id) DO NOTHING
        RETURNING id`,
-      [stageId, 'Untitled course', profile.id],
+      [stageId, placeholder, profile.id],
     );
     const courseId = (rows[0] as { id?: string } | undefined)?.id;
     if (!courseId) return; // lost a race with a concurrent create; the row exists

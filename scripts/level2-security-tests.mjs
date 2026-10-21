@@ -343,6 +343,29 @@ console.log('DELETION — reversible by default, and only for those entitled');
     method: 'PATCH', body: JSON.stringify({ status: 'PUBLISHED' }) });
 }
 
+console.log('NAMES — one instructor cannot own two courses with the same name');
+{
+  const { rows: [a] } = await pool.query(
+    `SELECT title FROM courses WHERE openmaic_stage_id = $1`, [COURSE_A]);
+  // Renaming a course to its own name is a no-op, so the collision has to be
+  // tested against a second course: make one, try to give it the first's name.
+  const second = await api(A.instructor1, `/api/level2/courses/${COURSE_A}/duplicate`, {
+    method: 'POST', body: JSON.stringify({}) });
+  const copy = second.status < 300 ? JSON.parse(second.body) : null;
+  check('a copy is named after the course as the platform shows it',
+    Boolean(copy && copy.title.startsWith(a.title)), copy?.title);
+
+  if (copy) {
+    const collide = await api(A.instructor1, `/api/level2/courses/${copy.stageId}`, {
+      method: 'PATCH', body: JSON.stringify({ title: a.title }) });
+    check('renaming onto a name the owner already uses is refused',
+      collide.status === 409 && collide.body.includes('TITLE_IN_USE'),
+      `got ${collide.status} ${collide.body.slice(0, 60)}`);
+
+    await api(A.instructor1, `/api/level2/courses/${copy.stageId}`, { method: 'DELETE', body: '{}' });
+  }
+}
+
 await pool.end();
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
