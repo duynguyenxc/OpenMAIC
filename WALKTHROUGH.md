@@ -303,6 +303,25 @@ two conditions, five real events, one consented participant and one who declined
   Level 2 came from too. Each suite now names its fixtures after the run and deletes them at the
   end.
 
+### Deployment, and a hazard it exposed
+
+Deployed first to a Vercel **preview** URL, to honour *"Do NOT destroy or overwrite Level 2"*. That
+URL turned out to sit behind Vercel's deployment protection, so nobody without an account on this
+Vercel team can open it — a staging URL the professor cannot click is not a staging URL.
+
+Checking that, a real hazard appeared: **the Level-2 production build answered 500 for the
+RESEARCHER account**, because it predates the role and shares one database with Level 3. Nobody
+else was affected (an instructor still answered 200), but it was a defect introduced by seeding a
+new role into a shared database.
+
+So Level 3A was promoted to production. Nothing is destroyed by that: the Level-2 code survives as
+the tag `level2-multiuser-stable` and the branch `feature/level2-rbac`, and is one deploy away.
+Level 3A is strictly additive, and Level 2's full suite passes on it. Verified on the live
+deployment afterwards: the researcher answers 200, **58/58 Level 2 and 46/46 Level 3A**.
+
+A genuinely separate Level-3 deployment needs a database of its own to mean anything, which is a
+decision rather than a command.
+
 ### Open, after this session
 
 - **3B, 3C, 3D not started.** Rubrics and AI assessment are next in the instruction's own order.
