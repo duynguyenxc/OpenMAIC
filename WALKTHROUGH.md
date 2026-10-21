@@ -196,3 +196,57 @@ Full report and the five-phase plan: `docs/LEVEL2_UPGRADE_PLAN.md`.
 
 Unchanged from L3, plus: **nothing in Phase 1 has been built**, and the deletion rule needs the
 owner's decision — archive-if-it-has-data versus hard delete — because it determines the schema.
+
+---
+
+## L5 — The upgrade, built in one pass (2026-10-21)
+
+The project owner asked for the plan in `docs/LEVEL2_UPGRADE_PLAN.md` to be carried out without
+further questions, and decided the one open point by delegating it: deletion archives when there
+is learner work and deletes when there is none.
+
+**The data-loss bug is closed.** `POST /instructors` refuses to touch the owner's row — 409
+`OWNER_CANNOT_BE_DEMOTED` — and the `ON CONFLICT` clause will not overwrite an `OWNER` permission
+either, so the hazard is shut at both levels. Handing a course over is now its own operation,
+`POST /courses/<id>/owner`, demoting the old owner to EDITOR and promoting the new one in one
+transaction.
+
+**Deletion exists**, which it never did. No learner sessions: deleted with its grants and
+enrolments. Learner sessions present: `ARCHIVED`, students locked out on their next request, every
+record kept, restorable by `PATCH status`. An administrator may still destroy one by sending the
+exact title in `confirmTitle`. It does not touch OpenMAIC's document store — the lesson stays in
+the workspace — so no partial failure across two stores can leave a course half-gone.
+
+**Double submission** is serialised by a Postgres advisory lock on (owner, title): two
+simultaneous duplicates return 201 and 200 with the same stage id.
+
+**Measured before and after, on the running app:** the panel that opened 3,193 px below an 800 px
+viewport is a dialog opening at 200 px; the dashboard went from 3,193 px to 1,128 px while listing
+more courses; `header a, nav a` went from 0 elements to real navigation; the ten seconds of white
+on `/platform` is a loading state — and the cause was the guard, not the page that already said
+"Loading…".
+
+**The co-instructor interface exists**, so the instruction's own acceptance test — add Instructor 2
+as EDITOR, confirm, remove, confirm — can be performed by a person for the first time. Verified by
+doing exactly that. The administrator opens the same dialog on any course, which is the
+AUTHORIZATION group that was missing.
+
+**The suite grew its second half: 41 → 56.** Self-damage, repetition, boundary values, honest
+answers, deletion. It also stopped reading its fixtures from `/tmp`, where they had been deleted —
+it would not run at all this morning. They live in `scripts/fixtures/` now.
+
+**The junk is gone, through the product.** Of 24 leftovers, 7 held no learner work and were
+deleted; 17 did and were archived instead. A student's list went from six identical "Course A"
+cards to two real courses, and not one learner session was destroyed — which is the archive rule
+doing exactly what it was written for.
+
+**Also:** three missing security headers, the ER diagram, and seven screenshots through the three
+manuals, so items 20–22 are earned rather than assumed.
+
+### Open, after this session
+
+- **Phase 3's remaining polish** is done except progress on the student card, which still has no
+  data behind it — the honest options are to show it or to stop promising it, and neither has been
+  chosen.
+- **Quiz and PBL records still do not exist** in this deployment, so item 14 remains half proven.
+- **Level 3 has not been started.**
