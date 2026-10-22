@@ -2148,5 +2148,8 @@
         "materialExtraction": null
       }
     }
+  },
+  "platform": {
+    "backToCourses": "내 강의로 돌아가기"
   }
 }

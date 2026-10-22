@@ -19,6 +19,7 @@
  * the platform with nobody able to administer it.
  */
 import Link from 'next/link';
+import { platformClassroomHref } from '@/lib/workbench/classroom-exit';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +60,7 @@ export default function AdminDashboard() {
   useEffect(() => { void loadUsers(); }, [loadUsers]);
 
   async function change(email: string, patch: Record<string, string>, done: string) {
+    setMessage(null); // the previous answer is not this request's answer (O3)
     const res = await fetch('/api/level2/admin/users', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, ...patch }),
@@ -191,7 +193,7 @@ export default function AdminDashboard() {
                       Manage
                     </Button>
                     <Button asChild size="sm" variant="ghost">
-                      <Link href={`/classroom/${c.stageId}`}>Open</Link>
+                      <Link href={platformClassroomHref(c.stageId)}>Open</Link>
                     </Button>
                     <DeleteCourseButton
                       course={c}

@@ -52,9 +52,15 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
   }, []);
   useEffect(load, [load]);
 
+  /**
+   * Returns whether the server accepted it. Every form here used to clear
+   * itself in a `.then` that ran on refusal too, so a rejected institution or
+   * study took the typing with it and had to be entered again (O2).
+   */
   async function post(url: string, body: unknown, success: string) {
-    if (busy) return;
+    if (busy) return false;
     setBusy(true);
+    setNote(null); // the previous answer is not this request's answer (O3)
     const res = await fetch(url, {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -63,6 +69,7 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
     setNote(res.ok ? success : (data.error?.message ?? 'That did not work.'));
     if (res.ok) load();
     setBusy(false);
+    return res.ok;
   }
 
   return (
@@ -83,7 +90,7 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
             onSubmit={(e) => {
               e.preventDefault();
               void post('/api/level3/institutions', { name: instName, shortName: instShort },
-                `Added ${instName}.`).then(() => { setInstName(''); setInstShort(''); });
+                `Added ${instName}.`).then((ok) => { if (ok) { setInstName(''); setInstShort(''); } });
             }}
           >
             <Input className="max-w-xs" placeholder="Jackson State University"
@@ -126,7 +133,7 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
               e.preventDefault();
               void post('/api/level3/studies',
                 { title: studyTitle, principalInvestigator: studyPi || undefined },
-                `Created “${studyTitle}”.`).then(() => { setStudyTitle(''); setStudyPi(''); });
+                `Created “${studyTitle}”.`).then((ok) => { if (ok) { setStudyTitle(''); setStudyPi(''); } });
             }}
           >
             <Input className="max-w-sm" placeholder="Study title"
@@ -172,7 +179,7 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                           void post(`/api/level3/studies/${s.id}/courses`,
                             { stageId: attachCourse, condition: attachCondition || undefined },
                             `Added the section under ${attachCondition || 'no condition'}.`)
-                            .then(() => { setAttachCourse(''); setAttachCondition(''); });
+                            .then((ok) => { if (ok) { setAttachCourse(''); setAttachCondition(''); } });
                         }}
                       >
                         <select
@@ -207,7 +214,7 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                           void post(`/api/level3/studies/${s.id}/participants`,
                             { email: participantEmail, consentStatus: participantConsent },
                             'Recorded, as a participant identifier rather than a name.')
-                            .then(() => setParticipantEmail(''));
+                            .then((ok) => { if (ok) setParticipantEmail(''); });
                         }}
                       >
                         <Input className="max-w-xs" type="email" placeholder="student@example.test"

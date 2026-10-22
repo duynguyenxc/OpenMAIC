@@ -689,3 +689,70 @@ true of the disk and false of the repository, and nobody would have noticed unti
 
 The allowlist now admits `/docs/*.md`, `/docs/*.pdf` and `docs/examples/` rather than a list of
 names, so the next document added does not have to remember to register itself.
+
+## L12 — Fixing the register's severe entries (2026-10-22)
+
+Five more from `docs/DEFECT_REGISTER.md`, picked by what they cost the person in front of them
+rather than by how deep the change was. They are now F4–F8 there, each with how it was verified.
+
+**"Archive it" deleted permanently (F4, was O1).** The dialog predicted the outcome from the
+*student count*. Enrolling somebody is not working in something, so a course with students and no
+sessions was described as *"archived rather than deleted… none of their work is lost"* under a
+button reading **Archive it** — and was then deleted for good.
+
+The prediction now comes from `lastActivityAt`, which is `max(...)` over exactly the
+`runtime_sessions` rows the server counts, so the two agree by construction rather than by
+agreement. It can only be stale in the safe direction: sessions are never removed, so a course
+predicted "will be deleted" can at worst turn out to be archived.
+
+Verified on the real course that would have been destroyed — *Course-UK*, one student, no activity.
+It now reads "deleted **permanently**, along with its one enrolment. This cannot be undone", under
+**Delete permanently**. A course with sessions still offers **Archive it**.
+
+**Restoring an archived course failed with a bare 500 (F5, was O15).** The unique index excludes
+archived rows, so a name is free while a course sits in the archive, and taking it back is a unique
+violation at the moment it returns. The instructor had archived something, could not get it back,
+and the screen said `request failed`. Now a `409` that names the colliding course and says to
+rename one of them first — and renaming and restoring in one PATCH works, which is the way out.
+Five checks cover the whole sequence, including that the name really is free while archived.
+
+**A refused edit threw away what you typed (F6, was O2).** `change()` and `post()` returned
+nothing, so every caller closed its editor or cleared its boxes in a `.then` that ran on refusal
+too. Both now return whether the server accepted it. A colliding rename leaves the editor open with
+the text in it; the administration forms keep theirs.
+
+**The banner showed the previous error while the next request ran (F7, was O3).** Cleared where
+each request starts, in all seven places that show a message. Proved by sampling the banner after a
+submit: it held the old text before the click and was empty at 50, 150, 400, 900 and 1,800 ms,
+instead of answering the new action with the old mistake for five seconds.
+
+**A student leaving a class landed in the generic chatbot (F8, was O5).** Extended the exit
+contract that already existed — `from=workspace`, `returnTo=home` — with `from=platform`, resolving
+to `/platform`, which asks the server who the account is and forwards from there. One keyword for
+all four roles, and **no path is ever taken from the query string**, so there is no open redirect.
+The arrow's label went into all twelve locale files with a test that fails if any is missing.
+Verified as a student: opened a course, pressed an arrow reading **"Back to my courses"**, landed
+on the course list.
+
+One correction that came with F5: the collision message used to say *"that instructor already
+has…"* to the instructor reading it. It is now decided by who is asking — *"you already have"* for
+the owner, *"its owner already has"* for an administrator editing somebody else's course.
+
+### Verified, and how
+
+- **232 API checks** (63 + 50 + 42 + 35 + 42) and the full unit suite, **0 failures**. The security
+  suite grew 58 → 63, the research suite 46 → 50, the classroom-exit tests 11 → 15.
+- `npx tsc --noEmit` clean; the i18n suite passes with the new key in all twelve locales.
+- F4, F6, F7 and F8 re-checked by hand in the browser, as a student and as an administrator.
+- Test data left as found; the rename probe was cancelled and every course kept its name.
+
+### What the next session must not assume
+
+- **Fourteen entries are still open** (O4, O6–O14, O16–O19). None of them loses work. O6 — a study
+  cannot be edited or removed once created — is the only one that is a missing feature rather than
+  a defect, and it is a 3A gap.
+- **Still nothing is deployed.** Everything above is local; F8's redirect and F3's role guard are
+  client-side and want re-checking once they are live.
+- Two console errors seen while verifying F8 (`hasStudents is not defined`) were **stale hot-reload
+  frames** from mid-edit, not a defect — the symbol does not exist in the file. The `StageStorage`
+  refusal logged on every student classroom open is real and is recorded as O19.

@@ -68,6 +68,7 @@ export function TemplateLibrary({
   async function send(url: string, body: unknown, success: (d: Record<string, unknown>) => string) {
     if (busy) return;
     setBusy(true);
+    setNote(null); // the previous answer is not this request's answer (O3)
     const res = await fetch(url, {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),

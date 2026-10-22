@@ -17,6 +17,7 @@
  * own menu, and everything about a course in a dialog over the page.
  */
 import Link from 'next/link';
+import { platformClassroomHref } from '@/lib/workbench/classroom-exit';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -67,9 +68,18 @@ export default function InstructorDashboard() {
   if (me === undefined) return <LoadingScreen />;
   if (me === null) return null;
 
+  /**
+   * Returns whether the server accepted it, so a caller can keep an editor
+   * open when it did not (O2) — the rename used to close and revert on every
+   * answer, so a refused long title had to be typed again from nothing.
+   */
   async function change(stageId: string, body: Record<string, unknown>, success: string) {
-    if (busy) return;
+    if (busy) return false;
     setBusy(true);
+    // Clear first. The previous answer stayed on screen for the whole round
+    // trip, so a second attempt was read against the first attempt's error
+    // (O3) — "a course title cannot be empty" about a title that was not.
+    setNote(null);
     const res = await fetch(`/api/level2/courses/${stageId}`, {
       method: 'PATCH',
       credentials: 'same-origin',
@@ -80,6 +90,7 @@ export default function InstructorDashboard() {
     setNote(res.ok ? success : (data.error?.message ?? 'That did not work.'));
     if (res.ok) reload();
     setBusy(false);
+    return res.ok;
   }
 
   return (
@@ -161,7 +172,7 @@ export default function InstructorDashboard() {
                   onSubmit={(e) => {
                     e.preventDefault();
                     void change(c.stageId, { title: draftTitle }, `Renamed to “${draftTitle.trim()}”.`).then(
-                      () => setRenaming(null),
+                      (ok) => { if (ok) setRenaming(null); },
                     );
                   }}
                 >
@@ -200,7 +211,7 @@ export default function InstructorDashboard() {
                 Results
               </Button>
               <Button size="sm" variant="outline" asChild>
-                <Link href={`/classroom/${c.stageId}`}>Open</Link>
+                <Link href={platformClassroomHref(c.stageId)}>Open</Link>
               </Button>
               <Button size="sm" variant="ghost" asChild>
                 <Link href={`/workspace?stage=${c.stageId}`}>Edit</Link>

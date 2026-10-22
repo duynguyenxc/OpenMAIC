@@ -5,14 +5,18 @@ Written on 22 October 2026 by signing in as each of the three roles in turn on
 reading the code. Every entry below was reproduced by hand; where a fix landed
 the same day, the entry says how it was verified.
 
-The API suites pass at 227 checks and the unit tests at 23, and they passed
-before this audit too. That is the point of the register: the suites prove the
-server refuses what it should, and almost nothing here is the server. What is
-left is the part a person meets — a button that promises the wrong thing, an
-error about the previous mistake, a page drawn for somebody who may not use it.
+The API suites passed before this audit and pass after it, now at **232
+checks**. That is the point of the register: the suites prove the server
+refuses what it should, and almost nothing here was the server. What was left
+is the part a person meets — a button that promised the wrong thing, an error
+about the previous mistake, a page drawn for somebody who may not use it.
 
 Severity is about what it costs the person in front of it, not about how deep
 the code change is.
+
+**Eight fixed** (F1–F8), all verified; **fourteen open** (O4, O6–O14,
+O16–O19), none of them about losing work. The open list is a list of findings,
+not a changelog.
 
 ---
 
@@ -81,38 +85,98 @@ as an instructor, `/platform/instructor` still renders in full; as an
 administrator, both `/platform/admin` and `/platform/instructor` still render.
 All 227 API checks and 23 unit tests still pass.
 
+### F4 — "Archive it" deleted permanently (was O1)
+**Severity: high.** The dialog predicted the outcome from the **student
+count**, which is the wrong question — enrolling somebody is not working in
+something. A course with students and no sessions was described as *"archived
+rather than deleted… none of their work is lost"* under a button reading
+**Archive it**, and the server then deleted it for good.
+
+Fixed in `components/level2/delete-course.tsx`: the prediction now comes from
+`lastActivityAt`, which is `max(...)` over exactly the `runtime_sessions` rows
+the server counts, so the two agree by construction. It can only be stale in
+the safe direction — sessions are never removed, so a course predicted
+"will be deleted" can at worst turn out to be archived.
+
+Verified in the browser on the real case that would have been destroyed —
+*Course-UK — Ethical decision making*, one student, no activity:
+
+> Nobody has worked in this course, so it will be **deleted permanently**,
+> along with its one enrolment. This cannot be undone. The lesson itself stays
+> in your OpenMAIC workspace.
+
+under a button reading **Delete permanently**. A course with sessions still
+reads *"Students have worked in this course, so it is archived…"* with
+**Archive it**.
+
+### F5 — restoring an archived course failed with a bare 500 (was O15)
+**Severity: medium, and it felt unrecoverable.** The unique index on course
+titles excludes archived rows, so the name is free while a course sits in the
+archive — and taking it back is a unique violation at the moment the course
+returns. That surfaced as `500 INTERNAL — request failed`: the instructor had
+archived something and could not get it back, with nothing on screen to say
+why.
+
+Fixed in `app/api/level2/courses/[stageId]/route.ts`: a status change away from
+ARCHIVED checks the title first and answers
+`409 TITLE_IN_USE — …so this one cannot come back under that name. Rename one
+of them first.` Renaming and restoring in a single PATCH works, which is the
+way out.
+
+Five checks added to `scripts/level2-security-tests.mjs` covering the whole
+sequence, including that the name really is free while archived.
+
+### F6 — a refused edit threw away what you typed (was O2)
+**Severity: medium.** The inline rename closed and reverted on *every* answer,
+because `change()` returned nothing and the caller closed the editor in a
+`.then` that ran on refusal too. A long title met a collision and was gone.
+The administration page had the same shape: a refused *Add institution*,
+*Create study*, *Add section* or *Record participant* cleared its boxes.
+
+Fixed by making both helpers return whether the server accepted it, and
+clearing only on success. Verified in the browser: a colliding rename now
+leaves the editor open with the text still in it.
+
+The course dialog was already correct — it clears inside the success callback —
+so nothing changed there.
+
+### F7 — the banner showed the previous error while the next request ran (was O3)
+**Severity: medium.** Every answer stayed on screen for the whole round trip of
+the next action, so a second attempt was read against the first attempt's
+error. During the audit this produced *"a course title cannot be empty"* about
+a title that was not empty.
+
+Fixed by clearing the message where each request starts, in all seven places
+that show one: the instructor page, the admin page, the course dialog, the
+research admin panel, the assessment panel, the knowledge panel and the
+template library.
+
+Verified by sampling the banner after a submit: it held the old message before
+the click and was empty at 50 ms, 150 ms, 400 ms, 900 ms and 1,800 ms after it,
+instead of showing the previous answer for five seconds.
+
+### F8 — a student leaving a class landed in the generic chatbot (was O5)
+**Severity: medium.** The classroom page has no links of its own, and its back
+arrow went to the OpenMAIC workspace — *"Hi, Learner — tell me anything you
+want to learn"* — which has nothing to do with the class just left.
+
+Fixed by extending the exit contract that already exists in
+`lib/workbench/classroom-exit.ts` (`from=workspace`, `returnTo=home`) with
+`from=platform`, which resolves to `/platform`. That page asks the server who
+the account is and forwards to its own dashboard, so one keyword serves all
+four roles and **no path is ever taken from the query string** — there is no
+open redirect here. The three dashboards open courses through
+`platformClassroomHref()`.
+
+The arrow's label is `platform.backToCourses`, added to all twelve locale
+files, with a test that fails if any locale is missing it.
+
+Verified as a student: opened a course, pressed an arrow now labelled **"Back
+to my courses"**, landed on `/platform/student`.
+
 ---
 
 ## Open — worth fixing, in rough order
-
-### O1 — "Archive it" sometimes deletes
-**Severity: high, because it is about losing work.** The delete dialog explains
-the rule correctly — *"If any of them has worked in it, the course is archived
-rather than deleted"* — and then labels the button **Archive it**
-unconditionally. On a course with students but no sessions, pressing it deletes
-the course permanently.
-
-The row already shows `last activity —` when nothing has happened, so the
-client knows which of the two outcomes applies. The dialog should say the one
-that will actually happen, and the button should read *Delete permanently* when
-that is what it does.
-
-### O2 — the inline rename throws away what you typed when the server refuses
-**Severity: medium.** Rename a course to a name another of your courses already
-uses: the server correctly answers *"that instructor already has a course with
-this name; pick another"*, and the editor closes and reverts. A long title is
-gone and has to be retyped. The editor should stay open with the text in it.
-
-The same pattern appears on the administration page: a refused *Add institution*
-clears both boxes. One fix, two places.
-
-### O3 — the banner shows the previous error while the next request is running
-**Severity: medium.** After a refused rename, pressing Save again leaves the
-*old* message on screen for the five seconds the new request takes — so the
-reader is told "a course title cannot be empty" about an action that has
-nothing to do with an empty title. The correct message replaces it afterwards.
-
-The banner should clear when a request starts, or read *Working…*.
 
 ### O4 — the banner shifts the controls under it
 **Severity: low, but it caused a misclick during this audit.** The message sits
@@ -120,16 +184,6 @@ above the tab strip inside the course dialog and above the toolbar on the
 instructor page. When it appears or clears, everything below moves by about
 18 px, so a click aimed at a tab lands on nothing. Reserve the space, or put
 the message somewhere that does not reflow the page.
-
-### O5 — a student leaving a class lands in the generic chatbot
-**Severity: medium.** The classroom page has **no links at all** — no "My
-courses", no sign-out, no platform header. The back arrow at the top left goes
-to the OpenMAIC workspace landing page ("Hi, Learner — tell me anything you
-want to learn"), not back to the course list. The *Platform* button we added
-is the only way home, and from a student's seat it is two hops and the wrong
-word.
-
-The classroom should return a platform learner to `/platform/student`.
 
 ### O6 — a study cannot be edited or removed once created
 **Severity: medium; it is a gap in instruction 3A rather than a bug.** There is
@@ -204,18 +258,12 @@ fits.
 `403 FORBIDDEN — course owner permission required` rather than 404. Harmless,
 but it is the same dishonesty the rest of the platform was cleaned of.
 
-### O15 — restoring an archived course fails with a bare 500 when its name has been reused
-**Severity: medium.** Archive a course, rename another to that title (allowed —
-the unique index excludes ARCHIVED), then set the archived one back to
-PUBLISHED: **`500 INTERNAL — request failed`**. The instructor archived
-something and cannot get it back, with no explanation. It should be a 409
-saying the name is taken and to rename first.
-
 ### O16 — wording written for an administrator, shown to a teacher
-**Severity: low.** The rename collision reads *"that instructor already has a
-course with this name"*. The instructor is the person reading it: *"you already
-have a course with this name"*. Similarly *"only STUDENT accounts can be
-enrolled"* names an internal role constant.
+**Severity: low. Half fixed.** The rename collision read *"that instructor
+already has a course with this name"*. It is now decided by who is asking:
+*"you already have…"* for the owner, *"its owner already has…"* for an
+administrator editing somebody else's course. Still outstanding: *"only STUDENT
+accounts can be enrolled"* names an internal role constant.
 
 ### O17 — as an administrator, the instructor page still says "My courses"
 **Severity: low.** An administrator on `/platform/instructor` sees every
@@ -226,6 +274,16 @@ been given access to*. True for an instructor, false for them.
 **Severity: low.** `/platform/login` has no link to the workspace. Someone who
 lands there by accident and has no account is stuck on it. Visiting it while
 already signed in shows the form rather than the dashboard.
+
+---
+
+### O19 — the classroom tries to save the lesson as a student, and is refused
+**Severity: low; noticed while verifying F8.** Opening a course as a student
+logs `[StageStorage] Failed to save stage: document authorization required` and
+`[StageStore] Failed to save to storage` on every open. The refusal is correct
+— a student must not rewrite the lesson — but the attempt should not be made,
+and it should not surface as an error. Nothing the student does is lost by it;
+their runtime records are written through a different path.
 
 ---
 

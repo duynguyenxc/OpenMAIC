@@ -1,4 +1,7 @@
-export type ClassroomExitDecision = { readonly kind: 'push'; readonly href: '/workspace' | '/' };
+export type ClassroomExitDecision = {
+  readonly kind: 'push';
+  readonly href: '/workspace' | '/platform' | '/';
+};
 
 interface ClassroomExitContext {
   readonly searchParams: Pick<URLSearchParams, 'get'>;
@@ -35,6 +38,16 @@ export function resolveClassroomExit({
   if (searchParams.get('returnTo') === 'home') {
     return { kind: 'push', href: '/' };
   }
+  // A class opened from the teaching platform belongs to a course, and its
+  // reader has a course list to go back to. Without this they landed on the
+  // OpenMAIC workspace — "Hi, Learner, tell me anything you want to learn" —
+  // which has nothing to do with the class they just left (O5). `/platform`
+  // asks the server who they are and forwards to their own dashboard, so one
+  // keyword serves all four roles and no path is ever taken from the query
+  // string.
+  if (searchParams.get('from') === 'platform') {
+    return { kind: 'push', href: '/platform' };
+  }
   return { kind: 'push', href: '/' };
 }
 
@@ -48,13 +61,18 @@ export function exitClassroom(
 
 export function classroomExitLabelKey(
   searchParams: Pick<URLSearchParams, 'get'>,
-): 'workbench.common.backToWorkspace' | 'generation.backToHome' {
-  return searchParams.get('from') === 'workspace'
-    ? 'workbench.common.backToWorkspace'
-    : 'generation.backToHome';
+): 'workbench.common.backToWorkspace' | 'platform.backToCourses' | 'generation.backToHome' {
+  if (searchParams.get('from') === 'workspace') return 'workbench.common.backToWorkspace';
+  if (searchParams.get('from') === 'platform') return 'platform.backToCourses';
+  return 'generation.backToHome';
 }
 
 export function classroomEntryHref(stageId: string, discoverOnly: boolean): string {
   const href = `/classroom/${stageId}`;
   return discoverOnly ? `${href}?from=workspace` : href;
+}
+
+/** Opening a course from a platform dashboard, so the exit arrow comes back here. */
+export function platformClassroomHref(stageId: string): string {
+  return `/classroom/${stageId}?from=platform`;
 }

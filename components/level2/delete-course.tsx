@@ -13,6 +13,18 @@
  * learner sessions is archived instead, because those records are research
  * data and v3 is about a research platform. The wording below says which
  * before the click, so nobody learns the rule by losing something.
+ *
+ * It used to predict that from the **student count**, which is the wrong
+ * question: a course with two students enrolled and nobody having opened it
+ * was described as "archived rather than deleted", under a button reading
+ * *Archive it*, and was then deleted permanently (O1). Enrolling somebody is
+ * not working in something.
+ *
+ * The right signal is `lastActivityAt`, which is `max(...)` over exactly the
+ * `runtime_sessions` rows the server counts — so the two agree by
+ * construction. It can only be stale in the safe direction: sessions are never
+ * removed, so a course predicted as "will be deleted" can at worst turn out to
+ * be archived, and nothing is lost by being wrong that way.
  */
 import { useState } from 'react';
 import {
@@ -37,7 +49,9 @@ export function DeleteCourseButton({
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const hasStudents = Number(course.studentCount) > 0;
+  const students = Number(course.studentCount);
+  // Worked in, not enrolled on. This is the one the server decides by.
+  const willArchive = course.lastActivityAt !== null;
 
   return (
     <>
@@ -54,17 +68,23 @@ export function DeleteCourseButton({
           <AlertDialogHeader>
             <AlertDialogTitle>Remove “{course.title}”?</AlertDialogTitle>
             <AlertDialogDescription>
-              {hasStudents ? (
+              {willArchive ? (
                 <>
-                  This course has students on it. If any of them has worked in it, the course is{' '}
-                  <strong>archived</strong> rather than deleted: it leaves your list, students can no
-                  longer open it, and <strong>none of their work is lost</strong>. You can bring it
-                  back from the Archived filter.
+                  Students have worked in this course, so it is <strong>archived</strong> rather
+                  than deleted: it leaves your list, students can no longer open it, and{' '}
+                  <strong>none of their work is lost</strong>. You can bring it back from the
+                  Archived filter.
                 </>
               ) : (
                 <>
-                  Nobody has worked in this course, so it will be <strong>deleted</strong> along with
-                  its enrolments. The lesson itself stays in your OpenMAIC workspace.
+                  Nobody has worked in this course, so it will be{' '}
+                  <strong>deleted permanently</strong>
+                  {students > 0 && (
+                    <>
+                      , along with {students === 1 ? 'its one enrolment' : `its ${students} enrolments`}
+                    </>
+                  )}
+                  . This cannot be undone. The lesson itself stays in your OpenMAIC workspace.
                 </>
               )}
             </AlertDialogDescription>
@@ -94,7 +114,7 @@ export function DeleteCourseButton({
                 setOpen(false);
               }}
             >
-              {busy ? 'Working…' : hasStudents ? 'Archive it' : 'Delete it'}
+              {busy ? 'Working…' : willArchive ? 'Archive it' : 'Delete permanently'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

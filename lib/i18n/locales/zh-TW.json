@@ -2148,5 +2148,8 @@
         "materialExtraction": null
       }
     }
+  },
+  "platform": {
+    "backToCourses": "返回我的課程"
   }
 }

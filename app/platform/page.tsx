@@ -9,7 +9,7 @@
  */
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMe } from '@/lib/level2/use-platform';
+import { homeFor, useMe } from '@/lib/level2/use-platform';
 
 export default function PlatformEntry() {
   const router = useRouter();
@@ -21,12 +21,7 @@ export default function PlatformEntry() {
       router.replace('/platform/login');
       return;
     }
-    router.replace(
-      me.role === 'ADMIN' ? '/platform/admin'
-      : me.role === 'INSTRUCTOR' ? '/platform/instructor'
-      : me.role === 'RESEARCHER' ? '/platform/researcher'
-      : '/platform/student',
-    );
+    router.replace(homeFor(me.role));
   }, [me, router]);
 
   return (

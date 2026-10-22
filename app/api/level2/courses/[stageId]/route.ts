@@ -15,11 +15,27 @@ const STATUSES = new Set(['DRAFT', 'PUBLISHED', 'ARCHIVED']);
 export function PATCH(req: Request, { params }: Params): Promise<Response> {
   return withOwner(req, async (ownerId, headers) => {
     const { stageId } = await params;
-    await requireCourseOwner(ownerId, stageId);
+    const actor = await requireCourseOwner(ownerId, stageId);
 
     const body = (await req.json().catch(() => ({}))) as { title?: unknown; status?: unknown };
     const updates: string[] = [];
     const values: unknown[] = [stageId];
+
+    const pool = await level2Pool();
+    const { rows: current } = await pool.query(
+      `SELECT owner_instructor_id AS "ownerId", title, status
+         FROM courses WHERE openmaic_stage_id = $1`,
+      [stageId],
+    );
+    const course = current[0] as
+      | { ownerId: string; title: string; status: string }
+      | undefined;
+    if (!course) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
+
+    // An administrator may be editing somebody else's course, and "you already
+    // have a course with this name" would then be false. The instructor is
+    // usually the reader, though, so the second person is the right default.
+    const whose = actor.profileId === course.ownerId ? 'you already have' : 'its owner already has';
 
     if (typeof body.title === 'string') {
       // A 5,000-character title used to be accepted and stored, which wrecks
@@ -29,17 +45,11 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
 
       // The person typed this name. Quietly turning it into something else
       // would be worse than telling them it is taken.
-      const pool0 = await level2Pool();
-      const { rows: owner } = await pool0.query(
-        `SELECT owner_instructor_id AS "ownerId" FROM courses WHERE openmaic_stage_id = $1`,
-        [stageId],
-      );
-      const ownerId = (owner[0] as { ownerId?: string } | undefined)?.ownerId;
-      if (ownerId && (await titleTaken(pool0, ownerId, body.title, stageId))) {
+      if (await titleTaken(pool, course.ownerId, body.title, stageId)) {
         return apiError(
           409,
           'TITLE_IN_USE',
-          'that instructor already has a course with this name; pick another',
+          `${whose} a course with this name; pick another`,
           headers,
         );
       }
@@ -51,12 +61,30 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
       if (typeof body.status !== 'string' || !STATUSES.has(body.status)) {
         return apiError(400, 'INVALID_STATUS', 'status must be DRAFT, PUBLISHED or ARCHIVED', headers);
       }
+
+      // Bringing a course back out of the archive puts it under the unique
+      // index again, which excludes archived rows. If its name was taken over
+      // by another course while it sat in the archive, the UPDATE raised a
+      // unique violation and the instructor got a bare `500 INTERNAL` with no
+      // way to understand it — they had archived something and could not get
+      // it back (O15). Say what is wrong and what to do about it.
+      const leavingArchive = course.status === 'ARCHIVED' && body.status !== 'ARCHIVED';
+      const titleAfter = typeof body.title === 'string' ? body.title : course.title;
+      if (leavingArchive && (await titleTaken(pool, course.ownerId, titleAfter, stageId))) {
+        return apiError(
+          409,
+          'TITLE_IN_USE',
+          `${whose} another course called “${titleAfter.trim()}”, so this one cannot come back ` +
+            'under that name. Rename one of them first.',
+          headers,
+        );
+      }
+
       values.push(body.status);
       updates.push(`status = $${values.length}`);
     }
     if (!updates.length) return apiError(400, 'NOTHING_TO_UPDATE', 'no title or status given', headers);
 
-    const pool = await level2Pool();
     const { rows } = await pool.query(
       `UPDATE courses SET ${updates.join(', ')}
         WHERE openmaic_stage_id = $1

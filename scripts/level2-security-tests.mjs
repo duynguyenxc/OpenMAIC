@@ -372,6 +372,39 @@ console.log('NAMES — one instructor cannot own two courses with the same name'
   }
 }
 
+console.log('\nCOMING BACK OUT OF THE ARCHIVE');
+{
+  // The unique index excludes archived rows, so a name is free while a course
+  // sits in the archive — and taking it back is a unique violation at the
+  // moment the course returns. That used to surface as a bare `500 INTERNAL`:
+  // the instructor had archived something and could not get it back, with
+  // nothing on screen to say why (O15).
+  const victim = await makeCourse(A.instructor1, `O15 victim (test ${RUN})`);
+  const thief = await makeCourse(A.instructor1, `O15 thief (test ${RUN})`);
+
+  const archived = await api(A.instructor1, `/api/level2/courses/${victim}`, {
+    method: 'PATCH', body: JSON.stringify({ status: 'ARCHIVED' }) });
+  check('a course can be archived', archived.status === 200, `got ${archived.status}`);
+
+  const stolen = await api(A.instructor1, `/api/level2/courses/${thief}`, {
+    method: 'PATCH', body: JSON.stringify({ title: `O15 victim (test ${RUN})` }) });
+  check('its name is free while it is archived', stolen.status === 200,
+    `got ${stolen.status} ${stolen.body.slice(0, 60)}`);
+
+  const restored = await api(A.instructor1, `/api/level2/courses/${victim}`, {
+    method: 'PATCH', body: JSON.stringify({ status: 'PUBLISHED' }) });
+  check('restoring it is refused clearly, not with a 500',
+    restored.status === 409 && restored.body.includes('TITLE_IN_USE'),
+    `got ${restored.status} ${restored.body.slice(0, 80)}`);
+  check('and the refusal says what to do about it',
+    restored.body.includes('Rename one of them first'), restored.body.slice(0, 90));
+
+  const renamedBack = await api(A.instructor1, `/api/level2/courses/${victim}`, {
+    method: 'PATCH', body: JSON.stringify({ status: 'PUBLISHED', title: `O15 recovered (test ${RUN})` }) });
+  check('renaming and restoring in one step works', renamedBack.status === 200,
+    `got ${renamedBack.status} ${renamedBack.body.slice(0, 70)}`);
+}
+
 // ── Clean up after ourselves ────────────────────────────────────────────────
 // A suite that leaves a course behind on every run is a suite that fills a
 // demo with noise, which is exactly what happened here before deletion

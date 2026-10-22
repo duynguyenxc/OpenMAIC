@@ -126,6 +126,7 @@ export function CourseDialog({
   async function act(url: string, init: RequestInit, success: (d: Record<string, unknown>) => string) {
     if (busy) return;
     setBusy(true);
+    setNote(null); // the previous answer is not this request's answer (O3)
     const outcome = await send(url, init);
     setNote({ kind: outcome.ok ? 'ok' : 'bad', text: outcome.ok ? success(outcome.data) : outcome.message });
     if (outcome.ok) {

@@ -11,6 +11,7 @@
  * that "UI hiding is not security".
  */
 import Link from 'next/link';
+import { platformClassroomHref } from '@/lib/workbench/classroom-exit';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -74,7 +75,7 @@ export default function StudentDashboard() {
                 </div>
               </dl>
               <Button asChild size="sm">
-                <Link href={`/classroom/${course.stageId}`}>Open course</Link>
+                <Link href={platformClassroomHref(course.stageId)}>Open course</Link>
               </Button>
             </CardContent>
           </Card>

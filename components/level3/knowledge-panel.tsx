@@ -73,6 +73,7 @@ export function KnowledgePanel({ courses }: { courses: CourseSummary[] | undefin
   async function send(url: string, init: RequestInit, success: (d: Record<string, unknown>) => string) {
     if (busy) return null;
     setBusy(true);
+    setNote(null); // the previous answer is not this request's answer (O3)
     const res = await fetch(url, { credentials: 'same-origin', ...init });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     setNote(res.ok ? success(data)

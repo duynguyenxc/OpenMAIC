@@ -2148,5 +2148,8 @@
         "materialExtraction": null
       }
     }
+  },
+  "platform": {
+    "backToCourses": "К моим курсам"
   }
 }
