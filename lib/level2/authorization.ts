@@ -39,8 +39,8 @@ export async function actorForOwner(ownerId: string | undefined): Promise<Actor 
 
 export class AuthorizationError extends Error {
   constructor(
-    readonly status: 401 | 403,
-    readonly code: 'UNAUTHENTICATED' | 'FORBIDDEN',
+    readonly status: 401 | 403 | 404,
+    readonly code: 'UNAUTHENTICATED' | 'FORBIDDEN' | 'COURSE_NOT_FOUND',
     message: string,
   ) {
     super(message);
@@ -94,6 +94,36 @@ export async function hasActiveEnrollment(actor: Actor, stageId: string): Promis
   return rows.length > 0;
 }
 
+/**
+ * Does this course exist at all?
+ *
+ * Every permission check below answers "no" the same way whether the course
+ * belongs to somebody else or was never there, so an owner who mistyped an id,
+ * or opened a link to a course that has since been deleted, was told
+ * "course owner permission required" (O14). That sends them looking for a
+ * permission problem they do not have.
+ *
+ * The trade is that a 404 confirms an id is unused. Stage ids are ten random
+ * characters, so that tells an enumerator nothing they could act on, and every
+ * other route in the product already answers 404 for a course that is gone.
+ */
+async function courseExists(stageId: string): Promise<boolean> {
+  const pool = await level2Pool();
+  const { rows } = await pool.query(
+    `SELECT 1 FROM courses WHERE openmaic_stage_id = $1 LIMIT 1`,
+    [stageId],
+  );
+  return rows.length > 0;
+}
+
+/** Raise 404 rather than 403 when the course simply is not there. */
+async function refuse(stageId: string, message: string): Promise<never> {
+  if (!(await courseExists(stageId))) {
+    throw new AuthorizationError(404, 'COURSE_NOT_FOUND', 'no such course');
+  }
+  throw new AuthorizationError(403, 'FORBIDDEN', message);
+}
+
 /** Any instructor permission on the course (OWNER, EDITOR or VIEWER), or ADMIN. */
 export async function requireCourseInstructor(
   ownerId: string | undefined,
@@ -102,9 +132,7 @@ export async function requireCourseInstructor(
   const actor = await requireAuthenticatedUser(ownerId);
   if (actor.role === 'ADMIN') return actor;
   const permission = await coursePermission(actor, stageId);
-  if (!permission) {
-    throw new AuthorizationError(403, 'FORBIDDEN', 'not an instructor of this course');
-  }
+  if (!permission) await refuse(stageId, 'not an instructor of this course');
   return actor;
 }
 
@@ -117,7 +145,7 @@ export async function requireCourseEditor(
   if (actor.role === 'ADMIN') return actor;
   const permission = await coursePermission(actor, stageId);
   if (permission !== 'OWNER' && permission !== 'EDITOR') {
-    throw new AuthorizationError(403, 'FORBIDDEN', 'edit permission required for this course');
+    await refuse(stageId, 'edit permission required for this course');
   }
   return actor;
 }
@@ -130,7 +158,7 @@ export async function requireCourseOwner(
   const actor = await requireAuthenticatedUser(ownerId);
   if (actor.role === 'ADMIN') return actor;
   if ((await coursePermission(actor, stageId)) !== 'OWNER') {
-    throw new AuthorizationError(403, 'FORBIDDEN', 'course owner permission required');
+    await refuse(stageId, 'course owner permission required');
   }
   return actor;
 }
@@ -141,7 +169,7 @@ export async function requireCourseEnrollment(
 ): Promise<Actor> {
   const actor = await requireAuthenticatedUser(ownerId);
   if (!(await hasActiveEnrollment(actor, stageId))) {
-    throw new AuthorizationError(403, 'FORBIDDEN', 'not enrolled in this course');
+    await refuse(stageId, 'not enrolled in this course');
   }
   return actor;
 }

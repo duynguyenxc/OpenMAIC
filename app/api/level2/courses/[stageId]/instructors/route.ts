@@ -21,7 +21,10 @@ export function GET(req: Request, { params }: Params): Promise<Response> {
          JOIN courses c        ON c.id = ci.course_id
          JOIN user_profiles up ON up.id = ci.instructor_id
         WHERE c.openmaic_stage_id = $1
-        ORDER BY ci.permission, up.email`,
+        -- Owner first, then by name. Ordering on the permission text put
+        -- EDITOR above OWNER above VIEWER, so a permission change made the
+        -- owner row jump up or down the list for no reason (O10).
+        ORDER BY (ci.permission <> 'OWNER'), coalesce(up.display_name, up.email)`,
       [stageId],
     );
     return json({ instructors: rows }, 200, headers);

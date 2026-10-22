@@ -332,6 +332,62 @@ console.log('\nAUDIT — the actions the instruction names are recorded');
   check('the audit log holds no credential-looking field', leak[0].n === 0, `rows=${leak[0].n}`);
 }
 
+console.log('\nA STUDY CAN BE CONFIGURED AND REMOVED');
+{
+  // None of this existed: a study was created and then fixed for ever as DRAFT
+  // with no protocol identifier, no way to correct the investigator, and no way
+  // to remove one made by mistake (O6). The fixture study's PROTO-2026-001 was
+  // written in SQL, so the product could not reproduce its own fixture.
+  const made = await api(A.admin, '/api/level3/studies', { method: 'POST',
+    body: J({ title: `Lifecycle (test ${RUN})`, protocolIdentifier: 'PROTO-TEST-1' }) });
+  check('a study can be created with a protocol identifier', made.status === 201,
+    `got ${made.status} ${made.body.slice(0, 70)}`);
+  const id = made.status === 201 ? JSON.parse(made.body).id : null;
+
+  if (id) {
+    const read = await api(A.admin, `/api/level3/studies/${id}`);
+    check('and read back on its own', read.status === 200 &&
+      JSON.parse(read.body).protocolIdentifier === 'PROTO-TEST-1', read.body.slice(0, 80));
+
+    const activated = await api(A.admin, `/api/level3/studies/${id}`, { method: 'PATCH',
+      body: J({ status: 'ACTIVE', principalInvestigator: 'researcher@example.test' }) });
+    check('moved out of DRAFT and given an investigator', activated.status === 200,
+      `got ${activated.status} ${activated.body.slice(0, 70)}`);
+
+    const badStatus = await api(A.admin, `/api/level3/studies/${id}`, { method: 'PATCH',
+      body: J({ status: 'HALFWAY' }) });
+    check('an invented status is refused', badStatus.status === 400, `got ${badStatus.status}`);
+
+    const badDate = await api(A.admin, `/api/level3/studies/${id}`, { method: 'PATCH',
+      body: J({ startDate: 'last tuesday' }) });
+    check('an unparseable date is refused rather than becoming a 500',
+      badDate.status === 400, `got ${badDate.status}`);
+
+    const studentPi = await api(A.admin, `/api/level3/studies/${id}`, { method: 'PATCH',
+      body: J({ principalInvestigator: 'student-us@example.test' }) });
+    check('a student still cannot be made investigator by editing',
+      studentPi.status === 409, `got ${studentPi.status}`);
+
+    const byInstructor = await api(A.us, `/api/level3/studies/${id}`, { method: 'PATCH',
+      body: J({ title: 'Renamed by somebody who may not' }) });
+    check('an instructor cannot configure a study', refused(byInstructor),
+      `got ${byInstructor.status}`);
+
+    const gone = await api(A.admin, `/api/level3/studies/${id}`, { method: 'DELETE', body: '{}' });
+    check('a study holding nothing is deleted', gone.status === 200 &&
+      JSON.parse(gone.body).deleted === true, gone.body.slice(0, 80));
+  }
+
+  // The fixture study holds participants and events, so it must be closed
+  // rather than deleted — the same rule a course with learner sessions follows.
+  const held = await api(A.admin, `/api/level3/studies/${studyId}`, { method: 'DELETE', body: '{}' });
+  check('a study holding data is closed, not deleted',
+    held.status === 200 && JSON.parse(held.body).closed === true, held.body.slice(0, 110));
+  if (held.status === 200) {
+    await pool.query(`UPDATE studies SET status = 'ACTIVE' WHERE id = $1`, [studyId]);
+  }
+}
+
 // ── Clean up ────────────────────────────────────────────────────────────────
 {
   const { rows } = await pool.query(

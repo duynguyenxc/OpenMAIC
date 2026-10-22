@@ -282,7 +282,13 @@ export async function saveStageData(
     log.info(`Saved stage: ${stageId}`);
     return failedChanges.length > 0 ? { failedChanges } : undefined;
   } catch (error) {
-    log.error('Failed to save stage:', error);
+    // The caller decides what an authorization refusal means; see O19 in
+    // docs/DEFECT_REGISTER.md. Only genuine failures are shouted about here.
+    if (/document authorization required/i.test(String(error))) {
+      log.info(`Not saving stage ${stageId}: this viewer may only read it.`);
+    } else {
+      log.error('Failed to save stage:', error);
+    }
     throw error;
   }
 }

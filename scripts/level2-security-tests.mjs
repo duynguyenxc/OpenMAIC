@@ -301,7 +301,46 @@ console.log('BOUNDARY VALUES — absurd input is refused, not stored');
     `got ${malformed.status} ${malformed.body.slice(0, 60)}`);
 
   const traversal = await api(A.instructor1, '/api/level2/courses/..%2F..%2Fetc%2Fpasswd/results');
-  check('a path-traversal course id is refused', refused(traversal), `got ${traversal.status}`);
+  // 404 counts here, and only here: there is no such course, which is the
+  // honest answer and the one O14 introduced. `refused` stays strict at
+  // 401/403 for every other check, where a 404 would hide a vanished course.
+  check('a path-traversal course id is refused',
+    refused(traversal) || traversal.status === 404, `got ${traversal.status}`);
+
+  // O14 — the owner's own mistake, told as a permission problem it is not.
+  const missing = await api(A.instructor1, '/api/level2/courses/DOES-NOT-EXIST', {
+    method: 'DELETE', body: '{}' });
+  check('deleting a course that does not exist says so, not "forbidden"',
+    missing.status === 404 && missing.body.includes('COURSE_NOT_FOUND'),
+    `got ${missing.status} ${missing.body.slice(0, 60)}`);
+
+  // …but a course that does exist and is not yours is still 403, so the 404
+  // never becomes a way to tell whose course is whose.
+  const notMine = await api(A.instructor2, `/api/level2/courses/${COURSE_A}`, {
+    method: 'DELETE', body: '{}' });
+  check('deleting somebody else\'s course is still refused as forbidden',
+    notMine.status === 403, `got ${notMine.status} ${notMine.body.slice(0, 60)}`);
+}
+
+console.log('\nA GENERATED NAME MUST NEVER BE THE THING THAT FAILS');
+{
+  // " (copy)" was appended without checking the 200-character cap, so a long
+  // course could not be duplicated at all and the only way out was to rename
+  // the original first (O13).
+  const longTitle = `${'X'.repeat(190)} (test ${RUN})`.slice(0, 196);
+  const long = await makeCourse(A.instructor1, longTitle);
+  const copy = await api(A.instructor1, `/api/level2/courses/${long}/duplicate`, {
+    method: 'POST', body: JSON.stringify({}) });
+  check('a long course can still be duplicated', copy.status === 201,
+    `got ${copy.status} ${copy.body.slice(0, 80)}`);
+  if (copy.status === 201) {
+    const { title } = JSON.parse(copy.body);
+    check('and the copy fits inside the cap', title.length <= 200, `${title.length} characters`);
+    check('and is still recognisable as a copy', title.endsWith('(copy)'), title.slice(-30));
+    await api(A.instructor1, `/api/level2/courses/${JSON.parse(copy.body).stageId}`,
+      { method: 'DELETE', body: '{}' });
+  }
+  await api(A.instructor1, `/api/level2/courses/${long}`, { method: 'DELETE', body: '{}' });
 }
 
 console.log('HONEST ANSWERS — "nothing" and "not yours" are different answers');

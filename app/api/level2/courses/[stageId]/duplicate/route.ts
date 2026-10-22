@@ -20,7 +20,7 @@
  */
 import { requireCourseInstructor } from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
-import { titleProblem } from '@/lib/level2/validation';
+import { TITLE_MAX, titleProblem } from '@/lib/level2/validation';
 import { freeTitleNear } from '@/lib/level2/course-titles';
 import { apiError, json } from '@/lib/level2/route-helpers';
 import { withRequestOwner } from '@/lib/server/identity/with-owner';
@@ -68,10 +68,20 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const sourceCourse = sourceRow[0] as { title?: string; ownerId?: string } | undefined;
       const platformTitle = sourceCourse?.title ?? source.stage.name ?? 'Course';
 
+      // " (copy)" used to be appended without checking the cap, so duplicating
+      // a 196-character course failed with "a course title cannot be longer
+      // than 200 characters" and the only way out was to rename the original
+      // first (O13). A suffix nobody typed must never be the thing that fails.
+      const SUFFIX = ' (copy)';
+      const generated =
+        platformTitle.length + SUFFIX.length <= TITLE_MAX
+          ? `${platformTitle}${SUFFIX}`
+          : `${platformTitle.slice(0, TITLE_MAX - SUFFIX.length).trimEnd()}${SUFFIX}`;
+
       const askedFor =
         typeof body.title === 'string' && body.title.trim()
           ? body.title.trim()
-          : `${platformTitle} (copy)`;
+          : generated;
 
       const problem = titleProblem(askedFor);
       if (problem) return apiError(400, 'INVALID_TITLE', problem, headers);

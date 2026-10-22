@@ -49,7 +49,10 @@ interface ResultRow {
   email: string;
   externalIdentifier: string | null;
   sessions: number;
-  interactions: number;
+  /** `runtime_records` for this learner. The UI used to read `interactions`,
+   *  which no route has ever returned, so the line said "· interactions ·"
+   *  with nothing in front of it (O11). */
+  records: number;
   activityTypes: string[] | null;
   lastActivityAt: string | null;
 }
@@ -152,22 +155,36 @@ export function CourseDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {note && (
-          <p
-            role="alert"
-            className={`rounded-md px-3 py-2 text-sm ${
-              note.kind === 'ok'
-                ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100'
-                : 'bg-destructive/10 text-destructive'
-            }`}
-          >
-            {note.text}
-          </p>
-        )}
+        {/* Always occupies its row. Collapsing it moved the tab strip and
+            everything under it by about 18 px whenever a message appeared or
+            cleared, so a click aimed at a tab missed (O4). */}
+        <div className="min-h-9">
+          {note && (
+            <p
+              role="alert"
+              className={`rounded-md px-3 py-2 text-sm ${
+                note.kind === 'ok'
+                  ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100'
+                  : 'bg-destructive/10 text-destructive'
+              }`}
+            >
+              {note.text}
+            </p>
+          )}
+        </div>
 
         <Tabs value={active} onValueChange={(v) => setActive(v as Tab)}>
           <TabsList>
-            <TabsTrigger value="students">Students{students ? ` (${students.length})` : ''}</TabsTrigger>
+            <TabsTrigger value="students">
+              Students
+              {students
+                ? (() => {
+                    const active = students.filter((s) => s.status === 'ACTIVE').length;
+                    const inactive = students.length - active;
+                    return inactive > 0 ? ` (${active}, ${inactive} inactive)` : ` (${active})`;
+                  })()
+                : ''}
+            </TabsTrigger>
             <TabsTrigger value="team">Teaching team{team ? ` (${team.length})` : ''}</TabsTrigger>
             <TabsTrigger value="results">Results</TabsTrigger>
           </TabsList>
@@ -294,12 +311,31 @@ export function CourseDialog({
                   <div className="text-muted-foreground text-xs">{t.email}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={t.permission === 'OWNER' ? 'default' : 'secondary'}>
-                    {t.permission}
-                  </Badge>
                   {t.permission === 'OWNER' ? (
-                    <span className="text-muted-foreground text-xs">owner</span>
+                    <>
+                      <Badge>OWNER</Badge>
+                      <span className="text-muted-foreground text-xs">owner</span>
+                    </>
                   ) : (
+                    <select
+                      className="border-input bg-background rounded-md border px-2 py-1 text-xs"
+                      value={t.permission}
+                      disabled={busy}
+                      onChange={(e) =>
+                        void act(
+                          `/api/level2/courses/${course.stageId}/instructors`,
+                          json({ email: t.email, permission: e.target.value }),
+                          (d) =>
+                            `${d.email} is now ${String(d.permission).toLowerCase()} on this course.`,
+                        )
+                      }
+                      aria-label={`Permission for ${t.email}`}
+                    >
+                      <option value="EDITOR">Editor</option>
+                      <option value="VIEWER">Viewer</option>
+                    </select>
+                  )}
+                  {t.permission !== 'OWNER' && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -342,8 +378,8 @@ export function CourseDialog({
                   <div>{r.email}</div>
                   <div className="text-muted-foreground text-xs">
                     {r.externalIdentifier ?? '—'} · {r.sessions} session
-                    {Number(r.sessions) === 1 ? '' : 's'} · {r.interactions} interaction
-                    {Number(r.interactions) === 1 ? '' : 's'} · last {formatWhen(r.lastActivityAt)}
+                    {Number(r.sessions) === 1 ? '' : 's'} · {Number(r.records ?? 0)} record
+                    {Number(r.records ?? 0) === 1 ? '' : 's'} · last {formatWhen(r.lastActivityAt)}
                   </div>
                 </div>
                 <Button

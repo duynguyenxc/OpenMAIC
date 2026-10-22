@@ -33,6 +33,19 @@ import {
   stageDeletionSettled,
 } from '@/lib/utils/deleted-stages';
 
+/**
+ * A learner's classroom mutates stage state (the current scene, for one), which
+ * schedules a document save the server then refuses — correctly, because a
+ * student must not rewrite the lesson. Logged as an error it looked like a
+ * fault on every single classroom open (O19). It is still reported, still
+ * returns false, and nothing pretends to have saved; it just stops shouting
+ * about the one refusal that is supposed to happen.
+ */
+function isExpectedReadOnlyRefusal(error: unknown): boolean {
+  return /document authorization required/i.test(String(error));
+}
+
+
 const log = createLogger('StageStore');
 
 /** Virtual scene ID used when the user navigates to a page still being generated */
@@ -903,7 +916,11 @@ const useStageStoreBase = create<StageState>()((set, get) => ({
 
       return true;
     } catch (error) {
-      log.error('Failed to save to storage:', error);
+      if (isExpectedReadOnlyRefusal(error)) {
+        log.info('Not saving the lesson: this viewer may only read it.');
+      } else {
+        log.error('Failed to save to storage:', error);
+      }
       return false;
     }
   },

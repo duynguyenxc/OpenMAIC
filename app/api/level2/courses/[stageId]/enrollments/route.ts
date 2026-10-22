@@ -66,7 +66,15 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     const student = students[0] as { id: string; role: string; status: string } | undefined;
     if (!student) return apiError(404, 'NO_SUCH_USER', 'no account with that email', headers);
     if (student.role !== 'STUDENT') {
-      return apiError(400, 'NOT_A_STUDENT', 'only STUDENT accounts can be enrolled', headers);
+      // Named the internal role constant — "only STUDENT accounts can be
+      // enrolled" — at a teacher who has never seen one (O16).
+      return apiError(
+        400,
+        'NOT_A_STUDENT',
+        'that account is not a student, so it cannot be enrolled; ' +
+          'add a colleague from the Teaching team tab instead',
+        headers,
+      );
     }
 
     const courseId = await courseIdFor(stageId);

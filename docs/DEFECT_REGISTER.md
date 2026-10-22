@@ -14,9 +14,8 @@ about the previous mistake, a page drawn for somebody who may not use it.
 Severity is about what it costs the person in front of it, not about how deep
 the code change is.
 
-**Ten fixed** (F1–F10), all verified; **twelve open** (O4, O6, O9–O14,
-O16–O19), none of them about losing work. The open list is a list of findings,
-not a changelog.
+**Twenty-two fixed** (F1–F22), all verified; **nothing open**. Every entry the
+22 October audit found has been closed.
 
 ---
 
@@ -217,98 +216,103 @@ again afterwards. Worth noting: **no learner response had ever existed in this
 database** — every suite cleans up after itself — so this was the first time
 the populated card had been seen at all.
 
+
+### F11 — a study could not be edited or removed once created (was O6)
+**Severity: medium; a missing feature rather than a defect.** There was no
+`app/api/level3/studies/[studyId]/route.ts` at all — no GET, no PATCH, no
+DELETE. A study was created with a title and an investigator and was then fixed
+for ever as DRAFT with no protocol identifier. The fixture study's
+`PROTO-2026-001` and ACTIVE were written in SQL, so **the product could not
+reproduce its own fixture data**.
+
+The route now exists. PATCH takes title, description, protocol identifier,
+status, start and end dates and the investigator, refusing an invented status,
+an unparseable date (which would otherwise have surfaced as a 500) and a
+student investigator — the same rule F1 added at creation. The create form
+takes a protocol identifier, the row's status badge became a select, and a
+Remove button sits beside Manage.
+
+Removal follows the rule Level 2 already settled for courses, because
+`research_participants` and `research_events` cascade from a study and the
+reason is identical: **a study holding nothing is deleted; one holding
+participants or events is CLOSED**, and an administrator may still force it
+with `confirmTitle`. Nine checks in the research suite cover the sequence,
+including that the fixture study is closed rather than destroyed.
+
+### F12 — the copy of a long-titled course failed (was O13)
+`" (copy)"` was appended without checking the 200-character cap, so a
+196-character course could not be duplicated and the only way out was to rename
+the original first. The base is now truncated so the suffix always fits. A
+suffix nobody typed must never be the thing that fails. Three checks.
+
+### F13 — a missing course was reported as a permission problem (was O14)
+Every permission check answered the same way whether a course belonged to
+somebody else or was never there, so an owner who mistyped an id was told
+`course owner permission required`. `requireCourseInstructor`,
+`requireCourseEditor`, `requireCourseOwner` and `requireCourseEnrollment` now
+answer `404 COURSE_NOT_FOUND` when the course does not exist.
+
+The trade is that a 404 confirms an id is unused; stage ids are ten random
+characters, so that tells an enumerator nothing, and every other route already
+answered 404 for a course that was gone. Two checks pin both halves: a missing
+course is 404, **and somebody else's existing course is still 403**, so the new
+answer never becomes a way to tell whose course is whose.
+
+### F14 — the Results tab printed a blank where a number belonged (was O11)
+The dialog read `r.interactions`, which **no route has ever returned** — the
+query produces `records`. So the line read `0 sessions · interactions · last —`
+with nothing in front of the word. It now reads the field that exists.
+
+### F15 — the two student counts disagreed (was O12)
+The course row counted active enrolments; the dialog tab counted every row it
+listed, inactive ones included, so the same course could read `2 students` in
+the list and `Students (3)` in the dialog. The tab now shows the active count,
+and `(2, 1 inactive)` when there is a difference.
+
+### F16 — a co-instructor's permission could not be changed from the row (was O9)
+It showed as a badge with only *Remove* beside it. Changing a colleague from
+editor to viewer already worked — re-add the same address with the other
+permission and the row updates in place — but nothing said so. The badge is now
+a select; the owner's stays a badge.
+
+### F17 — the teaching team rows jumped after an edit (was O10)
+`ORDER BY ci.permission` is alphabetical, and EDITOR sorts before OWNER before
+VIEWER, so changing a permission moved the owner up or down the list. Now owner
+first, then by name.
+
+### F18 — the banner shifted the controls under it (was O4)
+It collapsed when empty, moving the tab strip and the toolbar by about 18 px
+whenever a message appeared or cleared. This caused a real misclick during the
+audit. The row is now reserved in all three places that show one.
+
+### F19 — wording written for an administrator, shown to a teacher (was O16)
+`"only STUDENT accounts can be enrolled"` named an internal role constant at a
+teacher who has never seen one. It now says the account is not a student and
+points at the Teaching team tab. The rename collision was already fixed with F5.
+
+### F20 — an administrator on the instructor page was told it was theirs (was O17)
+They saw every course on the platform under *My courses — courses you own or
+have been given access to*. For an administrator it now reads **All courses —
+every course on the platform. You are seeing this as an administrator.**
+
+### F21 — the login page had no way back (was O18)
+Someone who landed there by accident, with no account, was stuck on it. There
+is now a *Back to OpenMAIC* link.
+
+### F22 — an expected refusal was logged as a fault (was O19)
+A learner's classroom mutates stage state, which schedules a document save the
+server refuses — correctly, because a student must not rewrite the lesson. It
+was logged as an error on every classroom open. It is still reported and still
+returns false; only the log level and the message changed, so a genuine save
+failure stays as loud as it was.
+
 ---
 
-## Open — worth fixing, in rough order
+## Open
 
-### O4 — the banner shifts the controls under it
-**Severity: low, but it caused a misclick during this audit.** The message sits
-above the tab strip inside the course dialog and above the toolbar on the
-instructor page. When it appears or clears, everything below moves by about
-18 px, so a click aimed at a tab lands on nothing. Reserve the space, or put
-the message somewhere that does not reflow the page.
+Nothing. Every entry found in the 22 October audit has been fixed and verified.
 
-### O6 — a study cannot be edited or removed once created
-**Severity: medium; it is a gap in instruction 3A rather than a bug.** There is
-no `app/api/level3/studies/[studyId]/route.ts` at all: no GET, no PATCH, no
-DELETE. A study is created with a title and an investigator, and is then fixed
-for ever as **DRAFT** with **no protocol id**. The status cannot be moved to
-ACTIVE, the protocol identifier cannot be set, the investigator cannot be
-corrected, and a study made by mistake stays in the list.
-
-The fixture study shows `PROTO-2026-001` and `ACTIVE` because it was seeded in
-SQL. The product cannot currently reproduce its own fixture data. Smallest
-honest fix: add status and protocol id to the create form, and a PATCH route
-for both.
-
-### O9 — a co-instructor's permission cannot be changed from the row
-**Severity: low.** The teaching team list shows `EDITOR` / `VIEWER` as a plain
-badge with only *Remove* beside it. Changing a colleague from editor to viewer
-*does* work — re-add the same address with the other permission selected, and
-the row updates in place without duplicating — but nothing says so. Either make
-the badge a select, or say so in the line of help text already there.
-
-### O10 — the teaching team rows reorder after an edit
-**Severity: low.** After changing a permission the owner row jumped from second
-to first. Rows should keep a stable order (owner first, then by name).
-
-### O11 — the Results tab prints an empty interaction count
-**Severity: low.** A student with no work reads `0 sessions · interactions ·
-last —`. The number before "interactions" is missing entirely rather than
-showing `0`.
-
-### O12 — the two student counts disagree with each other
-**Severity: low.** Removing a student is correctly a soft removal — *"can no
-longer open this course. Their work is kept"*, badge `INACTIVE`, button becomes
-*Restore*. But the dialog tab then still reads "Students (1)" when nobody can
-open the course, because it counts the rows it lists and it lists inactive ones.
-
-The course row in the list counts only the active ones. So the same course can
-read `2 students` in the list and `Students (3)` in the dialog — confirmed on
-*Demo 1 — Realist Evaluation*, which carries two active enrolments and one
-inactive from 16 October. Pick one meaning; if the tab keeps the total, write
-it as `3 (1 inactive)`.
-
-### O13 — duplicating a long-titled course fails
-**Severity: low.** `POST /duplicate` appends `" (copy)"` without checking the
-200-character cap, so a 196-character title gives
-`400 INVALID_TITLE — a course title cannot be longer than 200 characters`. The
-only way out is to shorten the original first. Truncate the base so the suffix
-fits.
-
-### O14 — deleting a course that does not exist says "forbidden"
-**Severity: low.** `DELETE /api/level2/courses/DOES-NOT-EXIST` answers
-`403 FORBIDDEN — course owner permission required` rather than 404. Harmless,
-but it is the same dishonesty the rest of the platform was cleaned of.
-
-### O16 — wording written for an administrator, shown to a teacher
-**Severity: low. Half fixed.** The rename collision read *"that instructor
-already has a course with this name"*. It is now decided by who is asking:
-*"you already have…"* for the owner, *"its owner already has…"* for an
-administrator editing somebody else's course. Still outstanding: *"only STUDENT
-accounts can be enrolled"* names an internal role constant.
-
-### O17 — as an administrator, the instructor page still says "My courses"
-**Severity: low.** An administrator on `/platform/instructor` sees every
-course on the platform under the heading *My courses — courses you own or have
-been given access to*. True for an instructor, false for them.
-
-### O18 — the login page has no way back
-**Severity: low.** `/platform/login` has no link to the workspace. Someone who
-lands there by accident and has no account is stuck on it. Visiting it while
-already signed in shows the form rather than the dashboard.
-
----
-
-### O19 — the classroom tries to save the lesson as a student, and is refused
-**Severity: low; noticed while verifying F8.** Opening a course as a student
-logs `[StageStorage] Failed to save stage: document authorization required` and
-`[StageStore] Failed to save to storage` on every open. The refusal is correct
-— a student must not rewrite the lesson — but the attempt should not be made,
-and it should not surface as an error. Nothing the student does is lost by it;
-their runtime records are written through a different path.
-
----
+New findings belong here as `O20` onward, with how to reproduce them.
 
 ## Checked and correct
 

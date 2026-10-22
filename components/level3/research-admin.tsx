@@ -35,6 +35,7 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
   const [instShort, setInstShort] = useState('');
   const [studyTitle, setStudyTitle] = useState('');
   const [studyPi, setStudyPi] = useState('');
+  const [studyProtocol, setStudyProtocol] = useState('');
 
   const [attachTo, setAttachTo] = useState<string | null>(null);
   const [attachCourse, setAttachCourse] = useState('');
@@ -57,6 +58,23 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
    * itself in a `.then` that ran on refusal too, so a rejected institution or
    * study took the typing with it and had to be entered again (O2).
    */
+  /** Same contract as `post`, for the verbs that are not POST. */
+  async function send(url: string, method: string, body: unknown, success: string) {
+    if (busy) return false;
+    setBusy(true);
+    setNote(null);
+    const res = await fetch(url, {
+      method, credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}),
+    });
+    const data = (await res.json().catch(() => ({}))) as
+      { error?: { message?: string }; message?: string };
+    setNote(res.ok ? (data.message ?? success) : (data.error?.message ?? 'That did not work.'));
+    if (res.ok) load();
+    setBusy(false);
+    return res.ok;
+  }
+
   async function post(url: string, body: unknown, success: string) {
     if (busy) return false;
     setBusy(true);
@@ -74,7 +92,10 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
 
   return (
     <>
-      {note && <p role="alert" className="bg-muted mb-3 rounded-md px-3 py-2 text-sm">{note}</p>}
+      {/* Reserved, not collapsed: see O4. */}
+      <div className="mb-3 min-h-9">
+        {note && <p role="alert" className="bg-muted rounded-md px-3 py-2 text-sm">{note}</p>}
+      </div>
 
       <Card className="mb-6">
         <CardHeader className="pb-3">
@@ -132,8 +153,10 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
             onSubmit={(e) => {
               e.preventDefault();
               void post('/api/level3/studies',
-                { title: studyTitle, principalInvestigator: studyPi || undefined },
-                `Created “${studyTitle}”.`).then((ok) => { if (ok) { setStudyTitle(''); setStudyPi(''); } });
+                { title: studyTitle, principalInvestigator: studyPi || undefined,
+                  protocolIdentifier: studyProtocol || undefined },
+                `Created “${studyTitle}”.`)
+                .then((ok) => { if (ok) { setStudyTitle(''); setStudyPi(''); setStudyProtocol(''); } });
             }}
           >
             <Input className="max-w-sm" placeholder="Study title"
@@ -142,6 +165,9 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
             <Input className="max-w-xs" type="email" placeholder="principal investigator email"
               value={studyPi} onChange={(e) => setStudyPi(e.target.value)}
               aria-label="Principal investigator email" />
+            <Input className="max-w-[12rem]" placeholder="PROTO-2026-001"
+              value={studyProtocol} onChange={(e) => setStudyProtocol(e.target.value)}
+              aria-label="Protocol identifier" />
             <Button type="submit" disabled={busy || !studyTitle.trim()}>
               {busy ? 'Working…' : 'Create study'}
             </Button>
@@ -160,10 +186,51 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={s.status === 'ACTIVE' ? 'default' : 'secondary'}>{s.status}</Badge>
+                    {/* A study was DRAFT for ever: nothing could move it to
+                        ACTIVE and nothing could remove one made by mistake
+                        (O6). The badge is now the control. */}
+                    <select
+                      className="border-input bg-background rounded-md border px-2 py-1 text-xs"
+                      value={s.status}
+                      disabled={busy}
+                      onChange={(e) =>
+                        void send(`/api/level3/studies/${s.id}`, 'PATCH',
+                          { status: e.target.value },
+                          `“${s.title}” is now ${e.target.value.toLowerCase()}.`)
+                      }
+                      aria-label={`Status of ${s.title}`}
+                    >
+                      {['DRAFT', 'ACTIVE', 'CLOSED'].map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
                     <Button size="sm" variant="outline"
                       onClick={() => setAttachTo(attachTo === s.id ? null : s.id)}>
                       {attachTo === s.id ? 'Close' : 'Manage'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      disabled={busy}
+                      onClick={() => {
+                        // Participants and events cascade from a study, so the
+                        // server closes rather than deletes when it holds any,
+                        // and says so. The warning here only has to be honest
+                        // about which of the two is about to happen.
+                        const holdsData = Number(s.participants) > 0 || Number(s.events) > 0;
+                        const question = holdsData
+                          ? `“${s.title}” holds ${s.participants} participant record(s) and ` +
+                            `${s.events} event(s). It will be closed, not deleted, and nothing ` +
+                            'will be destroyed. Continue?'
+                          : `“${s.title}” holds no participants and no events, so it will be ` +
+                            'deleted permanently. This cannot be undone. Continue?';
+                        if (!window.confirm(question)) return;
+                        void send(`/api/level3/studies/${s.id}`, 'DELETE', {},
+                          `“${s.title}” was removed.`);
+                      }}
+                    >
+                      Remove
                     </Button>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -64,6 +65,13 @@ export default function LoginPage() {
               one — there is no self-service reset, by design.
             </p>
           </form>
+          {/* Somebody who lands here by accident, or has no account, had no way
+              off this page at all (O18). */}
+          <p className="text-muted-foreground mt-4 text-xs">
+            <Link href="/" className="underline underline-offset-2 hover:text-foreground">
+              Back to OpenMAIC
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </main>

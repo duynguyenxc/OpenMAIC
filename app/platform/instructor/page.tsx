@@ -97,9 +97,15 @@ export default function InstructorDashboard() {
     <PlatformShell me={me} title="My courses">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">My courses</h1>
+          {/* True for an instructor; false for an administrator, who is shown
+              every course on the platform under the same two lines (O17). */}
+          <h1 className="text-xl font-semibold">
+            {me.role === 'ADMIN' ? 'All courses' : 'My courses'}
+          </h1>
           <p className="text-muted-foreground text-sm">
-            Courses you own or have been given access to.
+            {me.role === 'ADMIN'
+              ? 'Every course on the platform. You are seeing this as an administrator.'
+              : 'Courses you own or have been given access to.'}
           </p>
         </div>
         {/* Permanent, not only while the list is empty. */}
@@ -108,11 +114,17 @@ export default function InstructorDashboard() {
         </Button>
       </div>
 
-      {note && (
-        <p role="alert" className="bg-muted mb-3 rounded-md px-3 py-2 text-sm">
-          {note}
-        </p>
-      )}
+      {/* Always occupies its row. It used to collapse when empty, which moved
+          the toolbar and the whole course list up and down by about 18 px as
+          messages came and went — a click aimed at a tab landed on nothing
+          (O4). */}
+      <div className="mb-3 min-h-9">
+        {note && (
+          <p role="alert" className="bg-muted rounded-md px-3 py-2 text-sm">
+            {note}
+          </p>
+        )}
+      </div>
 
       <div className="mb-3 flex flex-wrap gap-2">
         <Input

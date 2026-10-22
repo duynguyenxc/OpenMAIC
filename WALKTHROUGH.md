@@ -813,3 +813,81 @@ same position. They are covered by API checks, which is not the same as having b
 
 Twelve entries (O4, O6, O9–O14, O16–O19). None loses work. O6 — a study cannot be edited or removed
 once created — remains the only one that is a missing feature rather than a defect.
+
+## L14 — Closing the register (2026-10-22)
+
+The remaining twelve entries, done in one pass. `docs/DEFECT_REGISTER.md` now has
+**twenty-two fixed and nothing open**. New findings start at O20.
+
+Worth saying what this pass cost and why: the earlier sessions verified through the browser, which
+is slow and expensive. Almost everything here was verified through the API suites instead, which is
+why fourteen new checks exist rather than fourteen screenshots. The suites are the cheaper and the
+more durable record.
+
+### The one that was a missing feature
+
+**A study could not be edited or removed (F11, was O6).** There was no `[studyId]` route at all —
+no GET, no PATCH, no DELETE. A study was created with a title and an investigator and was then
+fixed for ever as DRAFT with no protocol identifier. The fixture study's `PROTO-2026-001` was
+written in SQL, so **the product could not reproduce its own fixture data**.
+
+The route exists now, and removal follows the rule Level 2 already settled for courses rather than
+inventing a second one: `research_participants` and `research_events` cascade from a study, so one
+holding nothing is deleted and one holding data is **CLOSED**, with `confirmTitle` as the
+administrator's deliberate override. The admin panel gained a protocol-id field, a status select in
+place of the badge, and a Remove button whose warning says which of the two outcomes applies.
+
+### The one with a trade worth naming
+
+**A missing course was reported as a permission problem (F13, was O14).** Every permission check
+answered identically whether a course belonged to someone else or never existed, so an owner who
+mistyped an id was told `course owner permission required`.
+
+The four `requireCourse*` helpers now answer `404 COURSE_NOT_FOUND` when the course is not there.
+The trade is that a 404 confirms an id is unused — stage ids are ten random characters, so that
+tells an enumerator nothing, and every other route already answered 404 for a course that was gone.
+**Two checks pin both halves**, because the second is the one that matters: a missing course is 404,
+*and somebody else's existing course is still 403*, so the new answer never becomes a way to find
+out whose course is whose.
+
+This also broke one existing assertion — a path-traversal id now returns 404 rather than 403. The
+suite's `refused()` stays strict at 401/403 everywhere else, because a 404 there would hide a
+course that had vanished; only that one check accepts it, with the reason written down beside it.
+
+### The rest
+
+- **F12 (O13)** `" (copy)"` was appended without checking the 200-character cap, so a long course
+  could not be duplicated at all. A suffix nobody typed must never be the thing that fails.
+- **F14 (O11)** The Results tab read `r.interactions`, a field **no route has ever returned** — the
+  query produces `records`. The line printed the word with nothing in front of it.
+- **F15 (O12)** The list counted active enrolments and the dialog counted every row it listed, so
+  one course could read `2 students` and `Students (3)`.
+- **F16/F17 (O9/O10)** A co-instructor's permission is a select now, not a badge with only Remove
+  beside it — the capability existed, re-adding the address with the other permission, and nothing
+  said so. And `ORDER BY ci.permission` is alphabetical, so EDITOR sorted above OWNER above VIEWER
+  and the owner row jumped on every edit.
+- **F18 (O4)** The banner collapsed when empty and moved everything under it by ~18 px. Reserved in
+  all three places. This is the one that caused a real misclick during the audit.
+- **F19/F20/F21 (O16/O17/O18)** Wording written for an administrator and shown to a teacher; an
+  administrator told that every course on the platform was theirs; a login page with no way off it.
+- **F22 (O19)** A learner's classroom mutates stage state, which schedules a document save the
+  server refuses — correctly. It was logged as an error on every open. Only the log level and the
+  message changed: it still returns false and a genuine save failure is still loud. The cheap fix
+  here would have been to swallow the error, which would have been worse than the defect.
+
+### Verified, and how
+
+- **246 API checks** (68 + 59 + 42 + 35 + 42), **0 failures** — up from 232, fourteen of them new.
+- `npx tsc --noEmit` clean.
+- No browser verification in this pass, deliberately. F11's UI controls, F16's select and F18's
+  reserved rows are wired but **have not been clicked by a human** — that is the gap to close next,
+  and the cheapest way is one short pass, not a screenshot per change.
+
+### What the next session must not assume
+
+- **The register being empty does not mean the product is finished.** It means the 22 October audit
+  is closed. A second role-play pass would find more; this one found twenty-two.
+- **Still nothing is deployed.** Everything from L11 onward is local.
+- The classroom's save refusal (F22) is quieter now but **still happens on every student open**. The
+  real fix is not attempting the save, which lives in upstream's store and was judged too large to
+  do safely here.
