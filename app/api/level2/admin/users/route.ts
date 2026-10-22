@@ -14,7 +14,11 @@ import { apiError, json, withOwner } from '@/lib/level2/route-helpers';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const ROLES = new Set(['ADMIN', 'INSTRUCTOR', 'STUDENT']);
+// RESEARCHER became a platform role in 3A — the database constraint admits it
+// and the dashboard exists — but this Level-2 route was never told, so the
+// dropdown offered an option the server refused and the only way to make a
+// researcher was to run a seed script (O20).
+const ROLES = new Set(['ADMIN', 'INSTRUCTOR', 'STUDENT', 'RESEARCHER']);
 const STATUSES = new Set(['ACTIVE', 'INACTIVE', 'PENDING']);
 
 export function GET(req: Request): Promise<Response> {
@@ -45,7 +49,7 @@ export function PATCH(req: Request): Promise<Response> {
     const values: unknown[] = [body.email.trim()];
     if (body.role !== undefined) {
       if (typeof body.role !== 'string' || !ROLES.has(body.role)) {
-        return apiError(400, 'INVALID_ROLE', 'role must be ADMIN, INSTRUCTOR or STUDENT', headers);
+        return apiError(400, 'INVALID_ROLE', 'role must be ADMIN, INSTRUCTOR, STUDENT or RESEARCHER', headers);
       }
       values.push(body.role);
       updates.push(`role = $${values.length}`);

@@ -57,7 +57,13 @@ interface ResultRow {
   lastActivityAt: string | null;
 }
 interface TrajectoryEvent {
-  timestamp: string | null;
+  /** The route returns `createdAt`. This interface said `timestamp`, so every
+   *  row in the trajectory rendered its time as "—" (O21) — the same mistake
+   *  as `interactions` against `records` in F14. */
+  createdAt: string | null;
+  sessionStartedAt: string | null;
+  sessionOnly: boolean;
+  sessionKind: string | null;
   activityType: string | null;
   activityId: string | null;
   learnerInput: string | null;
@@ -419,7 +425,10 @@ export function CourseDialog({
                 {trajectory.events.map((e, i) => (
                   <div key={i} className="border-b py-2 text-sm last:border-0">
                     <div className="text-muted-foreground text-xs">
-                      {formatWhen(e.timestamp)} · {e.activityType ?? 'event'}
+                      {formatWhen(e.sessionOnly ? e.sessionStartedAt : e.createdAt)} ·{' '}
+                      {e.sessionOnly
+                        ? `opened a ${e.sessionKind ?? 'session'}, nothing recorded`
+                        : (e.activityType ?? 'event')}
                       {e.activityId ? ` · ${e.activityId}` : ''}
                     </div>
                     {e.learnerInput && <p className="mt-1">🧑 {e.learnerInput}</p>}

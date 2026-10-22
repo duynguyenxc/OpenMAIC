@@ -158,7 +158,12 @@ export default function AdminDashboard() {
       )}
 
       <Card className="mb-6">
-        <CardHeader className="pb-3"><CardTitle className="text-base">Users ({users.length})</CardTitle></CardHeader>
+        <CardHeader className="pb-3"><CardTitle className="text-base">
+          {/* Follows its own search, the way the courses heading does. It used
+              to stay at the full count while the rows below it narrowed (F26). */}
+          Users ({shownUsers.length}
+          {shownUsers.length !== users.length ? ` of ${users.length}` : ''})
+        </CardTitle></CardHeader>
         <CardContent>
           {/* Six accounts need no search; two hundred students do (S3-2). */}
           <Input
@@ -186,6 +191,7 @@ export default function AdminDashboard() {
                       <select
                         className="bg-background rounded border px-2 py-1 text-sm disabled:opacity-50"
                         value={u.role} disabled={self}
+                        aria-label={`Role for ${u.email}`}
                         title={self ? 'You cannot change your own role' : undefined}
                         onChange={(e) => void change(u.email, { role: e.target.value }, `${u.email} is now ${e.target.value}.`)}
                       >

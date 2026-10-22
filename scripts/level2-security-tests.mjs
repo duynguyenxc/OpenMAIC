@@ -343,6 +343,26 @@ console.log('\nA GENERATED NAME MUST NEVER BE THE THING THAT FAILS');
   await api(A.instructor1, `/api/level2/courses/${long}`, { method: 'DELETE', body: '{}' });
 }
 
+console.log('\nA FIELD THE UI READS MUST BE A FIELD THE ROUTE RETURNS');
+{
+  // Two screens read field names no route has ever returned — `interactions`
+  // where the query produces `records` (F14), and `timestamp` where it
+  // produces `createdAt` (O21). Both rendered a blank where a value belonged,
+  // and neither could fail a test, because nothing asserted the shape.
+  const results = await api(A.instructor1, `/api/level2/courses/${COURSE_A}/results`);
+  check('the results row carries the fields the dashboard reads',
+    results.status === 200 && JSON.parse(results.body).students.every(
+      (r) => 'sessions' in r && 'records' in r && 'lastActivityAt' in r),
+    results.body.slice(0, 110));
+
+  const trail = await api(A.instructor1,
+    `/api/level2/courses/${COURSE_A}/results?email=${encodeURIComponent('student1@example.test')}`);
+  check('and so does a trajectory row',
+    trail.status === 200 && JSON.parse(trail.body).events.every(
+      (e) => 'createdAt' in e && 'sessionStartedAt' in e && 'sessionOnly' in e),
+    trail.body.slice(0, 110));
+}
+
 console.log('HONEST ANSWERS — "nothing" and "not yours" are different answers');
 {
   const stranger = await api(A.instructor1,

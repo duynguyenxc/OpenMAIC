@@ -941,3 +941,73 @@ That is also why 46 → 45 means nothing: a different flake landed, not a fixed 
   `UPSTREAM_DELTA.md` as a known state, not in the defect register, which is about our own product.
 - The flakes make any whole-suite run unreliable as a pass/fail signal. Until they are fixed, the
   honest check for our work is the five API suites plus the directories we touch, named explicitly.
+
+## L16 — The second walkthrough: clicking what L14 only wired (2026-10-23)
+
+L14 closed twelve defects and said plainly that its new controls "have not been clicked by a human".
+This is that pass: signed in as administrator, instructor and student in turn and did each one's
+real jobs. Four more findings, all fixed and verified the same day — F23–F27 in
+`docs/DEFECT_REGISTER.md`.
+
+### The two worth remembering
+
+**RESEARCHER was in the role menu and refused by the server (F23).** The dropdown offers it,
+`researcher@example.test` holds it, and choosing it answered `400 — role must be ADMIN, INSTRUCTOR
+or STUDENT`. The route's `ROLES` set was written at Level 2 and never told that 3A had made
+RESEARCHER a platform role with a database constraint of its own.
+
+So **a researcher could only be created by running a seed script.** The administrator could see the
+role, could see accounts holding it, and could not grant it. One line.
+
+**The trajectory lost every timestamp — F14's exact mistake, a second time (F24).** The dialog's
+interface declared `timestamp`; the route returns `createdAt`. So *every* row rendered its time as
+`—`, on real content as much as on empty rows. Underneath, `courseTrajectory` LEFT JOINs
+`runtime_records`, so a session with nothing in it still produced a row with every field null,
+which drew as `— · event`.
+
+It now reads `10/16/2026, 9:25:41 PM · opened a chat, nothing recorded`, and real rows carry their
+own time. **The gap that let both F14 and this through is that nothing ever compared the UI's field
+names against the route's output**, so two checks now assert exactly that — the one structural
+lesson of this pass.
+
+### The other two
+
+- **F25** The student card said *"nothing submitted yet"* to a student with three sessions and two
+  runtime records in that course — the instructor's Results tab says so on the next screen over.
+  Both statements are true of different tables; together they read as lost work. Now *"no answers
+  submitted yet"*. The deeper gap stays open as **O23**: classroom activity reaches the instructor
+  and never the student.
+- **F26/F27** The Users heading ignored its own search while the courses heading beside it read
+  `(7 of 26)`; and thirteen role selects had no accessible name.
+
+### What was exercised and found sound
+
+Administrator: summary row, user search, role change and back, deactivate and reactivate, all four
+course filters (`19 + 7 = 26`, consistent), study creation with a protocol identifier, status change
+through the new select, and **both branches of the study Remove warning** — "deleted permanently"
+for an empty study, "closed, not deleted, and nothing will be destroyed" for the fixture one, which
+was declined.
+
+Instructor: students dialog reading `Students (2, 1 inactive)` against the row's `2 students`
+(F15 holding), adding a co-instructor, changing their permission through the new select (F16) with
+the owner staying first (F17), the Results tab showing `3 sessions · 2 records` (F14 holding),
+trajectory, unpublish and publish, duplicate, and deleting the copy through a dialog that correctly
+said *deleted permanently*.
+
+Student: the work line, opening a course, the back arrow reading **"Back to my courses"** landing on
+`/platform/student` (F8), and `/platform/admin` and `/platform/researcher` both bouncing back (F3).
+
+### Verified
+
+- **248 API checks** (70 + 59 + 42 + 35 + 42), **0 failures**; two of them new, pinning the payload
+  shapes the dashboards read.
+- `tests/level2 level3 workbench i18n security`: 93 files, 1310 tests, 0 failures.
+- `npx tsc --noEmit` clean.
+- Every perturbation undone: the probe study deleted, the co-instructor removed, the duplicate
+  deleted, the test account's role and status restored, the course republished.
+
+### What the next session must not assume
+
+- **One entry is open** (O23) and it is a feature, not a defect.
+- The whole-repo unit suite still fails as described in L15. That is upstream's, measured, unchanged.
+- **Still nothing is deployed.** Everything from L11 onward is local, now across six commits.

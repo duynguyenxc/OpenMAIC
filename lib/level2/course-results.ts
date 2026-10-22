@@ -67,6 +67,10 @@ export interface TrajectoryRow {
   agentResponse: string | null;
   seq: number | null;
   createdAt: string | null;
+  /** When the session itself began, which is all there is for an empty one. */
+  sessionStartedAt: string | null;
+  /** The session was opened and nothing was recorded in it. */
+  sessionOnly: boolean;
   payload: unknown;
 }
 
@@ -90,6 +94,8 @@ export async function courseTrajectory(stageId: string, email?: string): Promise
                  THEN rec.data::jsonb -> 'payload' ->> 'content' END AS "agentResponse",
             rec.seq,
             rec.created_at         AS "createdAt",
+            s.created_at           AS "sessionStartedAt",
+            (rec.id IS NULL)       AS "sessionOnly",
             rec.data               AS payload
        FROM runtime_sessions s
        JOIN courses c        ON c.openmaic_stage_id = s.stage_id

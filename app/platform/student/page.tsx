@@ -92,7 +92,11 @@ function useMyWork(stageIds: string[]): Record<string, MyWork> {
 /** One sentence about this student's standing, or an honest absence of one. */
 function describeWork(work: MyWork | undefined): string {
   if (!work) return 'loading…';
-  if (work.submissions === 0) return 'nothing submitted yet';
+  // Not "nothing yet": this counts `learner_responses` only, and a student who
+  // has spent an hour in the classroom has runtime records but no submitted
+  // answer. The instructor's Results tab shows that activity, so a card
+  // claiming the student had done nothing contradicted it (O22).
+  if (work.submissions === 0) return 'no answers submitted yet';
   const parts = [
     work.submissions === 1 ? '1 submission' : `${work.submissions} submissions`,
   ];

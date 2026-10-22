@@ -14,8 +14,8 @@ about the previous mistake, a page drawn for somebody who may not use it.
 Severity is about what it costs the person in front of it, not about how deep
 the code change is.
 
-**Twenty-two fixed** (F1–F22), all verified; **nothing open**. Every entry the
-22 October audit found has been closed.
+**Twenty-seven fixed** (F1–F27), all verified. **One open** (O23), low, and
+recorded with what closing it would take.
 
 ---
 
@@ -308,11 +308,73 @@ failure stays as loud as it was.
 
 ---
 
+## Second walkthrough — 23 October 2026
+
+The first audit's fixes were wired but had never been clicked. This pass signed in as all three
+roles and worked each one's real jobs end to end. Four more findings; all four fixed the same day.
+
+### F23 — RESEARCHER was offered in the role menu and refused by the server
+**Severity: medium.** The administration page's role dropdown lists RESEARCHER,
+and `researcher@example.test` exists with that role, but choosing it answered
+`400 — role must be ADMIN, INSTRUCTOR or STUDENT`. The route's `ROLES` set was
+written at Level 2 and never updated when 3A made RESEARCHER a platform role
+with a database constraint of its own.
+
+So **a researcher could only be created by running a seed script.** The
+administrator could see the role, could see accounts holding it, and could not
+grant it. Fixed by adding it to the set. Verified by promoting a test account
+and putting it back.
+
+### F24 — the trajectory lost every timestamp, and listed empty sessions as blanks
+**Severity: medium, and the second instance of F14's exact mistake.** The
+dialog's `TrajectoryEvent` declared `timestamp`; the route returns `createdAt`.
+So **every row** in an instructor's trajectory rendered its time as `—`, on
+real content as much as on empty rows.
+
+Underneath, `courseTrajectory` LEFT JOINs `runtime_records`, so a session with
+no records still produces a row — every field null. Those rendered as
+`— · event`, twice, above the real content.
+
+The query now also returns `sessionStartedAt` and `sessionOnly`. A trajectory
+reads `10/16/2026, 9:25:41 PM · opened a chat, nothing recorded` where it used
+to read `— · event`, and real rows carry their own time. Two checks now assert
+that the payload contains the fields the dashboard reads — **the gap that let
+both F14 and this through is that nothing ever compared the two.**
+
+### F25 — the student card said "nothing submitted yet" to a student who had worked
+**Severity: low, but it contradicts another screen.** The card counts
+`learner_responses` only. `student1@example.test` has three sessions and two
+runtime records in *Demo 1* — the instructor's Results tab says so — and was
+told **"nothing submitted yet"**. Both statements are true of different tables;
+together they read as if the student's work had been lost.
+
+Now reads **"no answers submitted yet"**, which is precise. The deeper gap
+stays open and is recorded as O23: classroom activity is not surfaced to the
+student at all, only to the instructor.
+
+### F26 — the Users header ignored its own search
+**Severity: low.** Searching the user list narrowed the rows but the heading
+stayed at `Users (13)`, while the courses table beside it reads
+`All courses (7 of 26)`. The same two tables, two behaviours. The Users heading
+now follows the courses one.
+
+### F27 — the role selects in the Users table had no accessible name
+**Severity: low.** Each row's role `<select>` had no `aria-label`, so a screen
+reader announced a combobox without saying whose role it set — on a page with
+thirteen of them. Every other select on the platform names itself. They now
+read `Role for admin@example.test`, verified in the accessibility tree.
+
+---
+
 ## Open
 
-Nothing. Every entry found in the 22 October audit has been fixed and verified.
+### O23 — a student cannot see their own classroom activity
+**Severity: low.** The instructor's Results tab reports a student's sessions and
+runtime records; the student's own dashboard reports neither. Only Level-3
+submissions reach them. Closing it means a per-student activity count on the
+courses route, or a small endpoint of their own — more than a wording change,
+which is why F25 fixed the false impression and left this.
 
-New findings belong here as `O20` onward, with how to reproduce them.
 
 ## Checked and correct
 
