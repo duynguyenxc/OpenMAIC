@@ -180,11 +180,17 @@ to first. Rows should keep a stable order (owner first, then by name).
 last —`. The number before "interactions" is missing entirely rather than
 showing `0`.
 
-### O12 — "Students (1)" counts a removed student
+### O12 — the two student counts disagree with each other
 **Severity: low.** Removing a student is correctly a soft removal — *"can no
 longer open this course. Their work is kept"*, badge `INACTIVE`, button becomes
-*Restore*. But the tab still reads "Students (1)" when nobody can open the
-course. Count the active enrolments, or write `1 (1 inactive)`.
+*Restore*. But the dialog tab then still reads "Students (1)" when nobody can
+open the course, because it counts the rows it lists and it lists inactive ones.
+
+The course row in the list counts only the active ones. So the same course can
+read `2 students` in the list and `Students (3)` in the dialog — confirmed on
+*Demo 1 — Realist Evaluation*, which carries two active enrolments and one
+inactive from 16 October. Pick one meaning; if the tab keeps the total, write
+it as `3 (1 inactive)`.
 
 ### O13 — duplicating a long-titled course fails
 **Severity: low.** `POST /duplicate` appends `" (copy)"` without checking the
