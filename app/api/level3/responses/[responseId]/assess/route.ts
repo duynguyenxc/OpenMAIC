@@ -13,6 +13,7 @@ import { requireCourseInstructor } from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 import { assessResponse, loadRubric, scoresFor } from '@/lib/level3/assessment';
 import { contextAsText, gatherContext } from '@/lib/level3/knowledge';
+import { recordUsage } from '@/lib/level3/usage';
 import { embedText } from '@/lib/level3/embeddings';
 import { apiError, json } from '@/lib/level2/route-helpers';
 import { withRequestOwner } from '@/lib/server/identity/with-owner';
@@ -55,7 +56,7 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       if (!response) return apiError(404, 'RESPONSE_NOT_FOUND', 'no such response', headers);
 
       // Only an instructor of the course the response belongs to.
-      await requireCourseInstructor(principal.ownerId, response.stageId);
+      const actor = await requireCourseInstructor(principal.ownerId, response.stageId);
 
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       const rubricId = typeof body.rubricId === 'string' ? body.rubricId : response.rubricId;
@@ -118,6 +119,14 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
           );
         }
         await client.query('COMMIT');
+
+        // Level 3D: one row per call, so usage by course, instructor, study
+        // and institution is a GROUP BY rather than a second ledger.
+        await recordUsage({
+          stage: 'level3-assessment', model: outcome.model, purpose: 'assessment',
+          courseId: response.courseUuid, responseId, actorId: actor.profileId,
+          studyId: null, institutionId: null,
+        });
 
         return json(
           {

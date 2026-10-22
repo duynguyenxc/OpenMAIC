@@ -14,6 +14,7 @@ import { requireAuthenticatedUser, requireCourseEnrollment, requireCourseInstruc
 import { level2Pool } from '@/lib/level2/db';
 import { loadRubric } from '@/lib/level3/assessment';
 import { contextAsText, gatherContext } from '@/lib/level3/knowledge';
+import { recordUsage } from '@/lib/level3/usage';
 import { embedText } from '@/lib/level3/embeddings';
 import { generateFeedback, policyAllows, recordFeedback, type FeedbackPolicy }
   from '@/lib/level3/feedback';
@@ -139,6 +140,10 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       });
 
       const id = await recordFeedback(responseId, feedback, policy, actor.role === 'STUDENT');
+      await recordUsage({
+        stage: 'level3-feedback', model: feedback.model, purpose: 'feedback',
+        courseId: response.courseId, responseId, actorId: actor.profileId,
+      });
       return json({ id, ...feedback, policy,
         knowledge: { requestId: context.requestId, sources: context.sources,
                      passages: context.passages.length } }, 201, headers);

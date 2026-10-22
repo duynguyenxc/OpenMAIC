@@ -1,6 +1,6 @@
 # Level 3 — architecture
 
-**Duy Nguyen · 21 October 2026 · sublevels 3A, 3B and 3C delivered, 3D not started**
+**Duy Nguyen · 22 October 2026 · 3A, 3B, 3C and 3D delivered — Level 3 complete**
 
 Instruction v3 is explicit about pace: *"Do NOT attempt all Level-3 features simultaneously"*,
 and *"After EACH sublevel: TEST, DOCUMENT, DEPLOY TO STAGING, REPORT."* This document describes
@@ -18,6 +18,8 @@ and *"After EACH sublevel: TEST, DOCUMENT, DEPLOY TO STAGING, REPORT."* This doc
       Assessment / feedback services    Level 3B — rubrics, assessment, feedback
                         +
               Knowledge services        Level 3C — resources, retrieval, bounded agents
+                        +
+   Modalities, jobs, integration       Level 3D — handwriting, audio, LMS boundary, analytics
 ```
 
 Each layer sits **on** the one below and may be removed without it. That is not an aesthetic
@@ -61,6 +63,20 @@ fails."* Nothing in the teaching path calls anything added in 3A.
 
 `docs/KNOWLEDGE_RESOURCE_ARCHITECTURE.md` has the detail, including what is deliberately not
 claimed about citation precision. 3C touches **no** upstream file.
+
+## What 3D added
+
+| Concern | Where it lives |
+|---|---|
+| Handwriting and audio as services | `lib/level3/media.ts` — `ResponseProcessor` |
+| The student's original, kept | `response_media` |
+| Work that must not block a student | `lib/level3/jobs.ts`, `processing_jobs` |
+| What the models cost, and where | `lib/level3/usage.ts`, `model_usage` |
+| A boundary for LMS, not an LMS | `lib/level3/lms.ts`, `lms_integrations`, `lms_course_links`, `lms_grade_postings` |
+| Conditions, agreement, revision effect | `lib/level3/analytics.ts` |
+
+`docs/MULTIMODAL_AND_INTEGRATION.md` has the detail. The one upstream file 3D touches is
+`lib/server/model-routes.ts`, one more string for the vision stage.
 
 `docs/RUBRIC_SYSTEM.md` has the detail. The one upstream file 3B touches is
 `lib/server/model-routes.ts`, two strings, recorded in `UPSTREAM_DELTA.md`.
@@ -109,12 +125,10 @@ excluded.
 
 Named here so nobody has to discover it by looking:
 
-- **3D** — handwriting and audio pipelines, LMS/Canvas, advanced analytics.
 - **Random assignment to conditions.** *"Do NOT implement automatic random assignment until
   explicitly requested."* Conditions are set by an administrator per section.
-- **Usage and cost monitoring.** Still deferred: 3B spends tokens, and what it does not yet do is
-  count them. Per-assessment model and prompt version are recorded; aggregate usage by course,
-  instructor, study and institution is not.
+- **A real LMS adapter.** 3D builds the boundary and one manual provider; no Canvas, no LTI launch,
+  no roster synchronisation over a network. The platform is designed to work without one.
 - **Retention policy.** The consent states exist; automatic deletion does not, deliberately —
   *"Do not permanently delete records automatically without explicit policy."*
 
@@ -136,6 +150,7 @@ Named here so nobody has to discover it by looking:
 
 | `RUBRIC_SYSTEM.md` | rubrics, assessment, review, feedback, revisions |
 | `KNOWLEDGE_RESOURCE_ARCHITECTURE.md` | resources, the provider interface, bounded agents, provenance |
+| `MULTIMODAL_AND_INTEGRATION.md` | handwriting, audio, the job queue, the LMS boundary, usage, analytics |
 
 Every document instruction v3 names now exists.
 
@@ -147,6 +162,9 @@ Every document instruction v3 names now exists.
 | `scripts/level3-research-tests.mjs` | **46** | the end-to-end scenario v3 specifies, with real requests |
 | `scripts/level3b-assessment-tests.mjs` | **42** | rubrics, assessment, review, feedback, revisions — with **real model calls**. `SKIP_LLM=1` runs the 28 that do not need one |
 | `scripts/level3c-knowledge-tests.mjs` | **35** | three retrievers, several sources at once, bounded agents, provenance — with **real embeddings**. `SKIP_LLM=1` runs the 23 that do not need one |
+| `scripts/level3d-media-tests.mjs` | **42** | uploads, the queue, the LMS boundary, usage, analytics — with a **real vision call**. `SKIP_LLM=1` runs the 37 that do not need one |
+
+**223 checks in total**, all passing against the live deployment.
 
 Both suites now name their fixtures after the run and remove them afterwards, because a suite that
 leaves courses behind fills a platform with sections nobody can tell apart.

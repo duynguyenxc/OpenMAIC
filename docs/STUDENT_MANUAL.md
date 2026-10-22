@@ -120,3 +120,23 @@ this for their own course and nobody else's.
 If your course is part of a research study, researchers see this data **without your name**, as a
 participant number, and only if you have consented. Using the platform for your course and being
 part of a study are separate things.
+
+---
+
+# Writing by hand, or speaking (Level 3D)
+
+Some activities let you photograph a handwritten page or record your answer instead of typing.
+
+**Your upload is kept.** The page or the recording is stored exactly as you sent it, alongside the
+text the system reads from it. If the reading is wrong, the original is still there to check
+against — it is never thrown away.
+
+**You are not kept waiting.** The upload is accepted straight away and the reading happens
+afterwards. Your answer may show as empty for a short while; that is the reading still being made,
+not your work being lost.
+
+**Handwriting is transcribed, not corrected.** The system copies what is on the page, mistakes
+included, and marks anything genuinely unreadable as `[illegible]` rather than guessing at it.
+
+If the reading fails altogether, your upload is still safe and your instructor can have it tried
+again. You do not need to resubmit.

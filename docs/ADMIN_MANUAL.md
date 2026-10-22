@@ -157,3 +157,43 @@ when. It covers account creation, role changes, course deletion, template public
 enrolment, study changes, consent changes and **every data export**.
 
 It never contains a password, a token or an API key, and there is an automated check that proves it.
+
+---
+
+# Level 3D — jobs, spending, and the LMS boundary
+
+## The job queue
+
+Transcription and handwriting reading happen **after** a student uploads, so nobody waits on a
+provider. The work sits in a queue until something runs it: `POST /api/level3/jobs/run`, which an
+instructor can trigger, or a scheduler can call. The queue is durable — nothing is lost between
+runs — and a failed job is retried three times before it is marked failed. The student's original
+upload is kept either way, so a failed job can be requeued without anybody resubmitting.
+
+## What the models cost
+
+**Usage** aggregates by course, instructor, study, institution and model.
+
+Two things to read carefully:
+
+- **Token counts may be empty.** A provider that does not report usage leaves them empty rather
+  than having a number estimated into it. The count of requests is always real.
+- **`knownTokens`** says how many requests actually reported usage. A small cost with a low
+  `knownTokens` means "we do not know", not "it was cheap".
+
+Costs are **estimates** from a price table in our own code, not from an invoice.
+
+## The LMS boundary
+
+The platform works entirely without an LMS, and is meant to.
+
+What exists is a boundary a Canvas or Moodle adapter can be written against, and one provider,
+`MANUAL`: grades are prepared here and a person carries them across. A posting made through it is
+recorded as `PREPARED`, never `SENT`, and says in words that nothing was transmitted.
+
+If you create an integration for a provider nobody has written an adapter for, it is created
+**INACTIVE** and tells you so. It will not quietly pretend to work.
+
+**A grade only leaves on a final score.** An AI score that no human has reviewed is refused. That
+rule exists everywhere in this platform and matters most here, where a number would reach somebody's
+transcript.

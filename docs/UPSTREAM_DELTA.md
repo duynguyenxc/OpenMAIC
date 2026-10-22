@@ -13,9 +13,10 @@ maintains.
  components/access-code-guard.tsx          | 114 +++++++++++++++++++++++-----
  components/classroom/ClassroomSurface.tsx |  68 ++++++++++++-----
  instrumentation.ts                        |  31 ++++++++
+ lib/server/model-routes.ts                |  10 +++
  package.json                              |   6 +-
  pnpm-lock.yaml                            | 122 ++++++++++++++++++++++++++----
- 8 files changed, 319 insertions(+), 57 deletions(-)
+ 9 files changed, 329 insertions(+), 57 deletions(-)
 ```
 
 ---
@@ -99,22 +100,27 @@ OpenMAIC deployment without accounts can never reach it.
 
 ### 6. `lib/server/model-routes.ts` — two new model stages
 
-Two entries appended to `LLM_STAGES`: `level3-assessment` and `level3-feedback`.
+Three entries appended to `LLM_STAGES`: `level3-assessment`, `level3-feedback` and
+`level3-handwriting`.
 
 Level 3B's assessment and feedback run **server-side**, where no browser supplies a model — the
 classroom resolves its model from the client, and a service has none. They could have borrowed an
 existing stage key, but they are genuinely different work with different cost and quality
 requirements, and an operator should be able to route and budget them apart from teaching:
 
+Handwriting extraction needs a **vision** model, which is a different choice again from the one
+that scores text.
+
 ```
 MODEL_ROUTES='{"level3-assessment":{"model":"openai:gpt-4.1"},
-               "level3-feedback":{"model":"openai:gpt-4.1-mini"}}'
+               "level3-feedback":{"model":"openai:gpt-4.1-mini"},
+               "level3-handwriting":{"model":"openai:gpt-4.1"}}'
 ```
 
-Nothing else in OpenMAIC references either key, and an unrouted stage falls back exactly as every
+Nothing else in OpenMAIC references any of the three keys, and an unrouted stage falls back exactly as every
 other one does.
 
-**Merge risk: very low.** Two strings appended to a `const` array.
+**Merge risk: very low.** Three strings appended to a `const` array.
 
 ### 7. `.gitignore` — admit the documentation
 

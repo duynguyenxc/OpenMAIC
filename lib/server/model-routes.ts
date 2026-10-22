@@ -163,6 +163,10 @@ export const LLM_STAGES = [
   // as every other stage does.
   'level3-assessment',
   'level3-feedback',
+  // Level 3D: handwriting extraction needs a *vision* model, which is a
+  // different choice from the one that scores text, and an operator must be
+  // able to route it separately.
+  'level3-handwriting',
 ] as const;
 
 export type LlmStage = (typeof LLM_STAGES)[number];

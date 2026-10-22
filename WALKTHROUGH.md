@@ -442,3 +442,66 @@ empty variable means "not configured". Fixed with a helper and a comment that sa
   or GraphRAG implementation plugs in; it is not written, and the documentation does not pretend
   otherwise.
 - **Usage and cost are still not counted**, now across three services rather than two.
+
+---
+
+## L9 — Level 3D, and Level 3 is complete (2026-10-22)
+
+Handwriting, audio, the job queue, the LMS boundary, usage accounting and research analytics.
+
+**Modalities are services, not core changes.** Each is a `ResponseProcessor`: bytes in, text out,
+with metadata. Audio goes through **OpenMAIC's own `transcribeAudio`** rather than a second
+transcription path — a second path is a second thing to configure and a second thing to be wrong.
+Handwriting goes to a vision model told to reproduce the page *including mistakes* and write
+`[illegible]` where it cannot read, because a guessed word becomes evidence in somebody's dataset.
+
+**The original is never discarded.** The recording or the page stays in `response_media`, the
+derived text in the response, the provenance in `processing_metadata`. A failed extraction leaves
+empty text, a `failed` status and the bytes untouched, so the job retries without the student
+resubmitting — and a test asserts the original survives processing whatever the outcome.
+
+**The queue is what keeps a student from waiting.** An upload returns `202` with a job id; nothing
+blocks on a provider. A database queue, claimed with `FOR UPDATE SKIP LOCKED`, drained by a route
+because a serverless deployment has nowhere to put a daemon.
+
+**The LMS work is a boundary, not Canvas**, exactly as instructed. `MANUAL` is the only
+implementation and it is honest rather than a stub: a posting is `PREPARED`, never `SENT`, and
+asking for an unimplemented provider creates the integration `INACTIVE` and says so. The rule that
+matters most lives here — **a grade only leaves on a final score**, so an unreviewed AI score is
+refused at the one boundary where it would reach a transcript.
+
+**Usage is finally counted**, which has been an open item since 3B: one row per call, aggregated by
+course, instructor, study, institution and model. Token counts stay **null** when a provider does
+not report them, and `knownTokens` is reported beside every total, because a small cost can mean
+cheap models or an unreporting provider and those are different facts.
+
+**Analytics answers four questions**, each possible only because of an earlier decision: conditions
+differ (3A's snapshots), AI against human (3B refusing to overwrite), revision effect (3B keeping
+attempts), and cost (3D). Every figure reports its n and the caveats are returned with the numbers.
+
+**42 checks, 0 failures, with a real vision call.** Everything else still passes:
+**58 + 46 + 42 + 35 + 42 = 223**.
+
+### One thing it cost
+
+The handwriting job threw, was requeued, and the test saw a response still marked `queued` — because
+`level3-handwriting` had been added to `LLM_STAGES` but never routed in `MODEL_ROUTES`. The queue
+behaved correctly throughout: it retried rather than losing the upload, which is what the retry
+budget is for. Routed, and the vision call works.
+
+### Level 3 is complete
+
+All four sublevels delivered, in the instruction's own order, each tested, documented and deployed
+before the next began. Every document instruction v3 names now exists.
+
+### Open, after this session
+
+- **No real LMS adapter.** The boundary exists; Canvas, LTI launch and roster synchronisation do
+  not, and the platform is designed to work without them.
+- **No OCR engine, no object storage, no scheduler.** Media lives in the database, a multi-page
+  scanned PDF is not split, and the worker runs when something calls it. Fine for a pilot, not for
+  a cohort.
+- **Quiz and PBL records have still never existed** in this deployment, so those event mappings
+  remain unexercised — carried unchanged since Level 2.
+- **The database is still shared** between what is deployed and anything else; a genuinely separate
+  research deployment needs its own.
