@@ -127,6 +127,9 @@ Named here so nobody has to discover it by looking:
 
 - **Random assignment to conditions.** *"Do NOT implement automatic random assignment until
   explicitly requested."* Conditions are set by an administrator per section.
+- **Retention is configurable but never automatic.** `retention_policy` records the periods and
+  strategy an administrator sets and reports what they would cover; nothing deletes on a timer,
+  because *"Do not permanently delete records automatically without explicit policy."*
 - **A real LMS adapter.** 3D builds the boundary and one manual provider; no Canvas, no LTI launch,
   no roster synchronisation over a network. The platform is designed to work without one.
 - **Retention policy.** The consent states exist; automatic deletion does not, deliberately —
@@ -151,6 +154,9 @@ Named here so nobody has to discover it by looking:
 | `RUBRIC_SYSTEM.md` | rubrics, assessment, review, feedback, revisions |
 | `KNOWLEDGE_RESOURCE_ARCHITECTURE.md` | resources, the provider interface, bounded agents, provenance |
 | `MULTIMODAL_AND_INTEGRATION.md` | handwriting, audio, the job queue, the LMS boundary, usage, analytics |
+| `SECURITY_TEST_REPORT.md` | every attack tested, with the results and what is not claimed |
+| `PERFORMANCE_AND_PRODUCTION.md` | the measured limit of this hosting, and a production architecture |
+| `examples/example-research-export.{json,csv}` | a real de-identified export of the worked study |
 
 Every document instruction v3 names now exists.
 
@@ -163,8 +169,10 @@ Every document instruction v3 names now exists.
 | `scripts/level3b-assessment-tests.mjs` | **42** | rubrics, assessment, review, feedback, revisions — with **real model calls**. `SKIP_LLM=1` runs the 28 that do not need one |
 | `scripts/level3c-knowledge-tests.mjs` | **35** | three retrievers, several sources at once, bounded agents, provenance — with **real embeddings**. `SKIP_LLM=1` runs the 23 that do not need one |
 | `scripts/level3d-media-tests.mjs` | **42** | uploads, the queue, the LMS boundary, usage, analytics — with a **real vision call**. `SKIP_LLM=1` runs the 37 that do not need one |
+| `tests/level3/permissions.test.ts` | **23** | unit tests: feedback policy, consent, parsing, provider selection, cost, the LMS boundary — no server, no database |
+| `scripts/level3-load-check.mjs` | — | concurrency measurement; see `PERFORMANCE_AND_PRODUCTION.md` |
 
-**223 checks in total**, all passing against the live deployment.
+**223 API checks and 23 unit tests**, all passing.
 
 Both suites now name their fixtures after the run and remove them afterwards, because a suite that
 leaves courses behind fills a platform with sections nobody can tell apart.

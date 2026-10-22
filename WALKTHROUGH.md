@@ -505,3 +505,65 @@ before the next began. Every document instruction v3 names now exists.
   remain unexercised — carried unchanged since Level 2.
 - **The database is still shared** between what is deployed and anything else; a genuinely separate
   research deployment needs its own.
+
+---
+
+## L10 — Closing the gaps a careful re-read found (2026-10-22)
+
+The project owner asked for both instructions to be checked again, properly. Level 3 had been
+reported complete; it was not. Six things the documents ask for were missing, and saying "complete"
+while they were is the kind of claim this log exists to prevent.
+
+**Unit tests.** v3 names four by name — permissions, rubric parsing, template cloning, study
+configuration — and there were **zero**. The API suites prove the system end to end, but they
+cannot pin a *rule* in isolation: when a policy refuses, what a malformed input is called, what an
+unpriced model costs. 23 unit tests now do, with no server and no database.
+
+**Concurrency measurement**, and it produced the most valuable finding of the session:
+
+```
+(EMAXCONNSESSION) max clients reached in session mode — pool_size: 15
+```
+
+**Supabase's session-mode pooler caps at fifteen clients**, shared with the application. At six
+concurrent requests it was already exhausted. That is *"the practical limit of the chosen
+free/low-cost hosting"* the instruction asked to be identified, and it breaks before the edge,
+before the models, before anything else gets a chance to.
+
+It also has a known remedy with a known cost: transaction-mode pooling would raise the ceiling and
+would silently break the **one** session-level advisory lock in the codebase — the duplicate guard
+in `level2/courses/[stageId]/duplicate`. Everything else already uses the transaction-scoped
+variant. One known change, not an unknown one.
+
+**A false alarm, correctly attributed.** The same burst against the live URL returned `403` with
+`x-vercel-mitigated: challenge` on every request, and locked the automated suites out of production
+for a while — while a human visitor was unaffected throughout. That is the host refusing a burst
+from one address, not the application failing. Reporting it as a defect would have turned a hosting
+fact into a false bug. The load script now detects the header, says what it is, and defaults to the
+local server so nobody provokes it by accident.
+
+**Retention**, which v3 asks to be configurable and in the same breath forbids acting on
+automatically. So `retention_policy` records the periods, the deleted-account handling and the
+de-identification strategy, and the endpoint **reports what they would cover**. Nothing deletes on a
+timer. A research dataset destroyed overnight by a schedule nobody remembered setting is exactly
+the failure that sentence guards against.
+
+**Three deliverables v3 lists at completion and we had not produced:** a security test report, an
+example research export, and a recommended production deployment architecture. All three now
+exist, and the export is a real one — generated from the worked study and checked for the absence
+of an email address.
+
+### Everything, after this
+
+**223 API checks + 23 unit tests, 0 failures.** Every document instruction v2 and v3 name exists.
+
+### Still open, and deliberately
+
+- **No real LMS adapter** — the boundary only, as instructed.
+- **No OCR engine, no object storage, no scheduler**; media lives in the database.
+- **Quiz and PBL records have never existed here**, so those mappings stay unexercised.
+- **The certificate chain to the database is not fully verified** (`uselibpqcompat`), carried since
+  Level 2 and still the thing to close before real student data.
+- **Level 2 and Level 3 share one database.**
+- **v2 asked for testing from different computers and browsers**; everything here was driven from
+  one machine.
