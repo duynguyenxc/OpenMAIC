@@ -756,3 +756,60 @@ the owner, *"its owner already has"* for an administrator editing somebody else'
 - Two console errors seen while verifying F8 (`hasStudents is not defined`) were **stale hot-reload
   frames** from mid-edit, not a defect — the symbol does not exist in the file. The `StageStorage`
   refusal logged on every student classroom open is real and is recorded as O19.
+
+## L13 — The two dashboards that were not designed (2026-10-22)
+
+The role-play pass judged the instructor page designed and the other two not. These are those two.
+They are F9 and F10 in `docs/DEFECT_REGISTER.md`.
+
+**The administration page (F9, was O7)** was one column 3,400 px tall holding four unrelated
+tables. The Users table had a search box; the courses table, twice as long with eighteen archived
+rows mixed into the live ones, had neither search nor filter — and nothing said how much of
+anything there was without scrolling four screens.
+
+It now opens with a summary row (Accounts · Awaiting approval · Live courses · Archived), and the
+courses table has search and a status filter defaulting to Active. The search covers **owner email**
+as well as title and id, which is the administrator's own axis — *whose courses are these?* is the
+question they arrive with, and the one an instructor never has to ask. The header reads
+`All courses (7 of 26)` so a filtered view can never be mistaken for the whole platform.
+
+One mistake worth recording: the first attempt put the "nothing matches" line in the **Users** card,
+because `</tbody></table>` matched that table first. Caught by looking at the page rather than at
+the diff — it rendered above the courses card, visibly in the wrong box. The courses table already
+had an empty row; it just could not tell *no courses at all* from *nothing matches what you typed*,
+and that is what was actually missing.
+
+**The student dashboard (F10, was O8)** carried *Instructor*, *Last activity* and a labelled
+*Course id*. The second is an administrator's column and the third is for a support conversation;
+neither answers "what do I have to do?". Meanwhile Level 3 computes submissions, marking and
+feedback, and `/api/level3/responses` already returns a student their own rows and nobody else's —
+so the information existed and had never reached the person it was about.
+
+The card now says **Your work: 2 submissions · 1 marked · last 22 Oct, 4:15 pm**, or *nothing
+submitted yet*, with a line when feedback is waiting. "Marked" counts only a human assessment or an
+AI one a human accepted; an unreviewed AI score is never shown, which is the rule everywhere else.
+The id survives as a quiet second line under the title, because two instructors can each run a
+"Research Methods".
+
+### Something the verification turned up
+
+**No learner response had ever existed in this database.** Every suite creates its own and deletes
+it, so the populated card had never been seen by anyone. To look at it I submitted two answers and
+a feedback event as `student-us@example.test`, read the card, and removed them again —
+`learner_responses` is back to zero rows.
+
+That is worth knowing beyond this change: **every screen that shows student work has only ever been
+seen empty.** The instructor's Results tab, the trajectory view and the assessment panel are in the
+same position. They are covered by API checks, which is not the same as having been looked at.
+
+### Verified, and how
+
+- **232 API checks, 0 failures**; `npx tsc --noEmit` clean.
+- Both dashboards checked by hand in the browser, including the empty and populated branches of the
+  student card and the empty, filtered and no-match states of the courses table.
+- Temporary data removed: `learner_responses` back to 0 rows, no fixture courses left behind.
+
+### Still open
+
+Twelve entries (O4, O6, O9–O14, O16–O19). None loses work. O6 — a study cannot be edited or removed
+once created — remains the only one that is a missing feature rather than a defect.

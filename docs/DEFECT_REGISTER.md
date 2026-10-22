@@ -14,7 +14,7 @@ about the previous mistake, a page drawn for somebody who may not use it.
 Severity is about what it costs the person in front of it, not about how deep
 the code change is.
 
-**Eight fixed** (F1–F8), all verified; **fourteen open** (O4, O6–O14,
+**Ten fixed** (F1–F10), all verified; **twelve open** (O4, O6, O9–O14,
 O16–O19), none of them about losing work. The open list is a list of findings,
 not a changelog.
 
@@ -174,6 +174,49 @@ files, with a test that fails if any locale is missing it.
 Verified as a student: opened a course, pressed an arrow now labelled **"Back
 to my courses"**, landed on `/platform/student`.
 
+### F9 — the administration page was four tables and no way around them (was O7)
+**Severity: medium (design).** `/platform/admin` was a single column 3,400 px
+tall. The Users table had a search box; the courses table, twice as long with
+eighteen archived rows mixed into the live ones, had neither search nor filter.
+Nothing said how much of anything there was without scrolling four screens.
+
+Fixed with three things, all built from data the page already had:
+- a **summary row** — Accounts, Awaiting approval, Live courses, Archived;
+- **search** on the courses table over title, id **and owner email**, which is
+  the administrator's own axis: "whose courses are these?" is the question they
+  arrive with and the one an instructor never has to ask;
+- a **status filter** defaulting to Active, with an *Everything* option, and a
+  header that reads `All courses (7 of 26)` so a filtered view never looks like
+  the whole platform.
+
+The empty row now distinguishes *no courses at all* from *nothing matches what
+you typed*. Verified in the browser: the summary reads 13 / 0 / 7 / 19;
+searching `instructor-uk` narrows 26 to 1; a nonsense search says so. With the
+default filter the page is short enough that Institutions and Studies are
+reachable without hunting.
+
+### F10 — the student dashboard showed operational metadata (was O8)
+**Severity: medium (design).** Each card carried *Instructor*, *Last activity*
+and a labelled *Course id* row. Last activity is an administrator's column and
+the id is for a support conversation; neither answers "what do I have to do?".
+Nothing said what had been submitted or whether feedback was waiting, although
+Level 3 computes both and `/api/level3/responses` already returns a student
+their own rows and nobody else's. The information existed and never reached the
+person it was about.
+
+The card now reads **Your work: 2 submissions · 1 marked · last 22 Oct,
+4:15 pm**, or *nothing submitted yet*, and shows a line when feedback is
+waiting. "Marked" counts only a human assessment or an AI one a human accepted
+— an unreviewed AI score is never reported, which is the rule the rest of the
+platform follows. The id stays as a quiet second line under the title, because
+two instructors can each run a "Research Methods".
+
+Verified both branches in the browser, the populated one by submitting two
+answers and a feedback event as `student-us@example.test` and removing them
+again afterwards. Worth noting: **no learner response had ever existed in this
+database** — every suite cleans up after itself — so this was the first time
+the populated card had been seen at all.
+
 ---
 
 ## Open — worth fixing, in rough order
@@ -197,26 +240,6 @@ The fixture study shows `PROTO-2026-001` and `ACTIVE` because it was seeded in
 SQL. The product cannot currently reproduce its own fixture data. Smallest
 honest fix: add status and protocol id to the create form, and a PATCH route
 for both.
-
-### O7 — the administration page is four tables and no way around them
-**Severity: medium (design).** `/platform/admin` is a single column 3,400 px
-tall: Users (13), All courses (26), Institutions (3), Studies (1). The Users
-table has a search box; **the courses table, which is twice as long, has
-neither search nor a status filter**, so 18 archived courses sit mixed in with
-the live ones. The instructor page has both, and it lists a third as many rows.
-
-What it needs, in order: a status filter and a search box on the courses table;
-a count row at the top (how many accounts, how many live courses, how many
-pending); and either tabs or an anchor nav so the four sections are reachable
-without scrolling four screens.
-
-### O8 — the student dashboard shows operational metadata instead of work
-**Severity: medium (design).** Each course card carries *Instructor*, *Last
-activity* and *Course id*. A student has no use for the course id, and "last
-activity" is an administrator's column. Nothing on the page says what has been
-assigned, what has been submitted, or whether any feedback is waiting — even
-though Level 3 computes scores and feedback and the student is the one they are
-for.
 
 ### O9 — a co-instructor's permission cannot be changed from the row
 **Severity: low.** The teaching team list shows `EDITOR` / `VIEWER` as a plain

@@ -21,7 +21,7 @@
 import Link from 'next/link';
 import { platformClassroomHref } from '@/lib/workbench/classroom-exit';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,9 +41,16 @@ interface PlatformUser {
 
 const ROLES = ['ADMIN', 'INSTRUCTOR', 'STUDENT', 'RESEARCHER'] as const;
 
+type CourseFilter = 'active' | 'published' | 'draft' | 'archived' | 'all';
+
 export default function AdminDashboard() {
   const [managing, setManaging] = useState<CourseSummary | null>(null);
   const [userQuery, setUserQuery] = useState('');
+  // The courses table had neither search nor filter while listing every course
+  // on the platform — twenty-six of them, eighteen archived, mixed in with the
+  // live ones (O7). The Users table above it has had a search box all along.
+  const [courseQuery, setCourseQuery] = useState('');
+  const [courseFilter, setCourseFilter] = useState<CourseFilter>('active');
   const router = useRouter();
   const me = useMe();
   const { courses, reload: reloadCourses } = useCourses();
@@ -72,6 +79,25 @@ export default function AdminDashboard() {
 
   if (!me) return <main className="p-6 text-sm text-muted-foreground">Loading…</main>;
 
+  const cq = courseQuery.trim().toLowerCase();
+  const shownCourses = (courses ?? [])
+    .filter((c) =>
+      courseFilter === 'all' ? true
+      : courseFilter === 'active' ? c.status !== 'ARCHIVED'
+      : courseFilter === 'published' ? c.status === 'PUBLISHED'
+      : courseFilter === 'draft' ? c.status === 'DRAFT'
+      : c.status === 'ARCHIVED',
+    )
+    // An administrator's extra axis is the owner: "whose courses are these?"
+    // is the question they arrive with, and it is the one the instructor
+    // dashboard never has to answer.
+    .filter((c) =>
+      !cq ||
+      c.title.toLowerCase().includes(cq) ||
+      c.stageId.toLowerCase().includes(cq) ||
+      c.ownerEmail.toLowerCase().includes(cq),
+    );
+
   const q = userQuery.trim().toLowerCase();
   const shownUsers = users.filter(
     (u) =>
@@ -84,9 +110,29 @@ export default function AdminDashboard() {
 
   const pending = users.filter((u) => u.status === 'PENDING');
 
+  // Four numbers, all computed from what is already loaded. The page opened on
+  // a bare table of thirteen accounts and said nothing about the platform as a
+  // whole — an administrator had to scroll four screens to learn how much of
+  // anything there was (O7).
+  const summary = [
+    { label: 'Accounts', value: users.length },
+    { label: 'Awaiting approval', value: pending.length },
+    { label: 'Live courses', value: (courses ?? []).filter((c) => c.status !== 'ARCHIVED').length },
+    { label: 'Archived', value: (courses ?? []).filter((c) => c.status === 'ARCHIVED').length },
+  ];
+
   return (
     <PlatformShell me={me} title="Administration">
       {message && <p className="mb-4 text-sm">{message}</p>}
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {summary.map((s) => (
+          <div key={s.label} className="ring-foreground/10 bg-card rounded-lg px-4 py-3 ring-1">
+            <div className="text-2xl font-semibold tabular-nums">{s.value}</div>
+            <div className="text-muted-foreground text-xs">{s.label}</div>
+          </div>
+        ))}
+      </div>
 
       {pending.length > 0 && (
         <Card className="mb-6">
@@ -167,9 +213,32 @@ export default function AdminDashboard() {
 
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-base">
-          All courses ({courses?.length ?? 0})
+          All courses ({shownCourses.length}{
+            courses && shownCourses.length !== courses.length ? ` of ${courses.length}` : ''
+          })
         </CardTitle></CardHeader>
         <CardContent>
+          <div className="mb-3 flex flex-wrap gap-2">
+            <Input
+              className="max-w-xs"
+              placeholder="Search by course, id or owner…"
+              value={courseQuery}
+              onChange={(e) => setCourseQuery(e.target.value)}
+              aria-label="Search courses"
+            />
+            <select
+              className="border-input bg-background rounded-md border px-3 text-sm"
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value as CourseFilter)}
+              aria-label="Filter courses"
+            >
+              <option value="active">Active</option>
+              <option value="published">Published</option>
+              <option value="draft">Drafts</option>
+              <option value="archived">Archived</option>
+              <option value="all">Everything</option>
+            </select>
+          </div>
           <table className="w-full text-sm">
             <thead className="text-muted-foreground border-b text-left">
               <tr className="[&>th]:px-2 [&>th]:py-2 [&>th]:whitespace-nowrap">
@@ -177,7 +246,7 @@ export default function AdminDashboard() {
                 <th>Students</th><th>Status</th><th>Last activity</th><th /></tr>
             </thead>
             <tbody>
-              {courses?.map((c) => (
+              {shownCourses.map((c) => (
                 <tr key={c.id} className="border-b last:border-0 [&>td]:px-2 [&>td]:py-2">
                   <td className="py-2">{c.title}<br />
                     <span className="text-muted-foreground text-xs">{c.stageId}</span></td>
@@ -205,8 +274,12 @@ export default function AdminDashboard() {
                   </td>
                 </tr>
               ))}
-              {courses?.length === 0 && (
-                <tr><td colSpan={7} className="text-muted-foreground py-4">No courses yet.</td></tr>
+              {courses && shownCourses.length === 0 && (
+                <tr><td colSpan={7} className="text-muted-foreground py-4">
+                  {courses.length === 0
+                    ? 'No courses on the platform yet.'
+                    : 'No course matches that search and filter.'}
+                </td></tr>
               )}
             </tbody>
           </table>
