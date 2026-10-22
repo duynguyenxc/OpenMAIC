@@ -27,13 +27,15 @@ import { PlatformShell } from '@/components/level2/platform-shell';
 import { TemplateLibrary } from '@/components/level3/template-library';
 import { AssessmentPanel } from '@/components/level3/assessment-panel';
 import { KnowledgePanel } from '@/components/level3/knowledge-panel';
-import { formatWhen, useCourses, useMe, type CourseSummary } from '@/lib/level2/use-platform';
+import { formatWhen, useCourses, useMe, useRoleGuard, type CourseSummary } from '@/lib/level2/use-platform';
 
 type Filter = 'active' | 'published' | 'draft' | 'archived';
 type Sort = 'activity' | 'title' | 'created';
 
 export default function InstructorDashboard() {
   const me = useMe();
+  // An administrator may open a course's management dialog from here too.
+  useRoleGuard(me, ['INSTRUCTOR', 'ADMIN']);
   const { courses, reload } = useCourses();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('active');

@@ -29,7 +29,7 @@ import { ResearchAdmin } from '@/components/level3/research-admin';
 import { DeleteCourseButton } from '@/components/level2/delete-course';
 import { Input } from '@/components/ui/input';
 import { PlatformShell } from '@/components/level2/platform-shell';
-import { formatWhen, useCourses, useMe, type CourseSummary } from '@/lib/level2/use-platform';
+import { formatWhen, useCourses, useMe, useRoleGuard, type CourseSummary } from '@/lib/level2/use-platform';
 
 interface PlatformUser {
   id: string; email: string; displayName: string | null;
@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => { if (me === null) router.replace('/platform/login'); }, [me, router]);
+  useRoleGuard(me, ['ADMIN']);
 
   const loadUsers = useCallback(async () => {
     const res = await fetch('/api/level2/admin/users');

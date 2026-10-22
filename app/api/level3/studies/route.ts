@@ -48,11 +48,23 @@ export function POST(req: Request): Promise<Response> {
     let piId: string | null = null;
     if (typeof body.principalInvestigator === 'string' && body.principalInvestigator.trim()) {
       const { rows } = await pool.query(
-        `SELECT id FROM user_profiles WHERE lower(email) = lower($1)`,
+        `SELECT id, role FROM user_profiles WHERE lower(email) = lower($1)`,
         [body.principalInvestigator.trim()],
       );
-      piId = (rows[0] as { id?: string } | undefined)?.id ?? null;
+      const candidate = rows[0] as { id?: string; role?: string } | undefined;
+      piId = candidate?.id ?? null;
       if (!piId) return apiError(404, 'NO_SUCH_USER', 'no account with that email', headers);
+      // Leading a study is read access to everybody else's data on it, so the
+      // same rule applies here as to the studies list: a student never sees a
+      // study, and naming one as investigator must not be the way around that.
+      if (candidate?.role === 'STUDENT') {
+        return apiError(
+          409,
+          'STUDENT_CANNOT_LEAD_STUDY',
+          'that account is a student; a study is led by a researcher, instructor or administrator',
+          headers,
+        );
+      }
     }
 
     const { rows } = await pool.query(

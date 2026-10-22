@@ -38,6 +38,12 @@ export async function requireStudyAccess(
 ): Promise<Actor> {
   const actor = await requireAuthenticatedUser(ownerId);
   if (actor.role === 'ADMIN') return actor;
+  // The studies list already refuses students; so does every route behind this
+  // check, and for the same reason. Said once here, it cannot be undone by a
+  // row — a student named as principal investigator is still a student.
+  if (actor.role === 'STUDENT') {
+    throw new AuthorizationError(403, 'FORBIDDEN', 'studies are not visible to students');
+  }
 
   const pool = await level2Pool();
   const { rows } = await pool.query(

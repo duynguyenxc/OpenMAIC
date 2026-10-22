@@ -1,4 +1,4 @@
-/** Level 3A — institutions. Listing: any signed-in account. Creating: ADMIN. */
+/** Level 3A — institutions. Listing: staff accounts. Creating: ADMIN. */
 import { requireAuthenticatedUser } from '@/lib/level2/authorization';
 import { requirePlatformAdmin } from '@/lib/level3/authorization';
 import { level2Pool } from '@/lib/level2/db';
@@ -10,7 +10,14 @@ export const runtime = 'nodejs';
 
 export function GET(req: Request): Promise<Response> {
   return withOwner(req, async (ownerId, headers) => {
-    await requireAuthenticatedUser(ownerId);
+    const actor = await requireAuthenticatedUser(ownerId);
+    // Instructors and researchers need this list to fill in the selects that
+    // place a course or a study. A student has no such select, and the roll of
+    // institutions — who exists, how many people are in each — is not part of
+    // taking a course. Refused rather than left open because it was convenient.
+    if (actor.role === 'STUDENT') {
+      return apiError(403, 'FORBIDDEN', 'institutions are not visible to students', headers);
+    }
     const pool = await level2Pool();
     const { rows } = await pool.query(
       `SELECT i.id, i.name, i.short_name AS "shortName", i.country,

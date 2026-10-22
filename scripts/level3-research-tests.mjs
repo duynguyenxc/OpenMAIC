@@ -91,6 +91,37 @@ console.log('INSTITUTIONS');
   const asInstructor = await api(A.us, '/api/level3/institutions', {
     method: 'POST', body: J({ name: 'Rogue University', shortName: 'ROGUE' }) });
   check('an instructor cannot create an institution', refused(asInstructor), `got ${asInstructor.status}`);
+
+  // The roll of institutions is staff information. Reading it was open to any
+  // signed-in account until a student opened the administration page and saw
+  // every institution, its country and its headcount listed in full.
+  const asStudent = await api(A.student, '/api/level3/institutions');
+  check('a student cannot list the institutions', refused(asStudent), `got ${asStudent.status}`);
+
+  const asResearcher = await api(A.researcher, '/api/level3/institutions');
+  check('a researcher still can', asResearcher.status === 200, `got ${asResearcher.status}`);
+}
+
+console.log('\nWHO MAY LEAD A STUDY');
+{
+  // Leading a study is read and export access to everybody else's data on it,
+  // granted by one row rather than by a role. A student named as principal
+  // investigator used to get 200 on that study's participants and its export
+  // while the studies list refused them — the one door left unlocked.
+  const asPi = await api(A.admin, '/api/level3/studies', { method: 'POST',
+    body: J({ title: `PI guard (${new Date().toISOString().slice(11,19)})`,
+              principalInvestigator: 'student-us@example.test' }) });
+  check('a student cannot be named principal investigator', asPi.status === 409,
+    `got ${asPi.status} ${asPi.body.slice(0,70)}`);
+
+  const asResearcherPi = await api(A.admin, '/api/level3/studies', { method: 'POST',
+    body: J({ title: `PI ok (${new Date().toISOString().slice(11,19)})`,
+              principalInvestigator: 'researcher@example.test' }) });
+  check('a researcher can', asResearcherPi.status === 201,
+    `got ${asResearcherPi.status} ${asResearcherPi.body.slice(0,70)}`);
+  if (asResearcherPi.status === 201) {
+    await pool.query('DELETE FROM studies WHERE id = $1', [JSON.parse(asResearcherPi.body).id]);
+  }
 }
 
 console.log('\nTEMPLATES — one module, published once');

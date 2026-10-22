@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlatformShell } from '@/components/level2/platform-shell';
-import { useMe } from '@/lib/level2/use-platform';
+import { useMe, useRoleGuard } from '@/lib/level2/use-platform';
 
 interface Study {
   id: string;
@@ -64,6 +64,9 @@ export default function ResearcherDashboard() {
   useEffect(() => {
     if (me === null) router.replace('/platform/login');
   }, [me, router]);
+  // An administrator is allowed here: they may lead or oversee a study, and the
+  // studies route answers them in full.
+  useRoleGuard(me, ['RESEARCHER', 'ADMIN']);
 
   const load = useCallback(() => {
     fetch('/api/level2/me', { credentials: 'same-origin' }).then(() =>

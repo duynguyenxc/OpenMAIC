@@ -78,13 +78,16 @@ next-env.d.ts
 # path (docs/LEVEL2_ARCHITECTURE_AUDIT.md, docs/ADMIN_MANUAL.md, and so on).
 !/docs/
 /docs/*
-!/docs/LEVEL*.md
-!/docs/*_MANUAL.md
-!/docs/UPSTREAM_DELTA.md
-!/docs/HOW_TO_TEST.md
-!/docs/WHAT_IT_DOES_AND_LIMITS.md
+# Every document in here is ours — upstream keeps none. Naming them one by one
+# meant that each Level-3 deliverable added under a new name (API.md,
+# DATA_DICTIONARY.md, SECURITY_TEST_REPORT.md and ten others) was silently left
+# out of the repository and existed on one laptop only. Allow the extensions
+# instead, and keep ignoring anything upstream might later drop here.
+!/docs/*.md
+!/docs/*.pdf
 !/docs/screenshots/
 !/docs/demo/
+!/docs/examples/
 # Eval results
 eval/whiteboard-layout/results/
 eval/outline-language/results/

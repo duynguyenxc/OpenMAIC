@@ -567,3 +567,125 @@ of an email address.
 - **Level 2 and Level 3 share one database.**
 - **v2 asked for testing from different computers and browsers**; everything here was driven from
   one machine.
+
+## L11 — Three roles, by hand, and what pressing the buttons found (2026-10-22)
+
+The ask was to stop reading the code and **use the thing**: sign in as administrator, as
+instructor, as student, press every button, try the worst cases, judge whether the three dashboards
+are actually designed, and write the small defects down so they can be worked through gradually.
+Driven in the browser pane at 1440×900 against `http://localhost:3000`.
+
+Worth saying plainly up front: **the suites were green before this session and are green after it**,
+and they would not have caught a single thing below. 227 API checks prove the server refuses what it
+should. They cannot tell you that a button promises the wrong outcome, or that a page is drawn for
+somebody who may not use any of it. That gap is what a person sitting in front of the product sees
+first, and it is why this pass was worth the hours.
+
+### The one that was not cosmetic
+
+**A student named as principal investigator could read and export that study.** The studies *list*
+refuses a student by role. Every *per-study* route authorised by a row — `principal_investigator =
+me` — without ever asking what the account is. And the administration page's *Create study* form
+accepted any address.
+
+Found by typing `student1@example.test` into that box out of curiosity, seeing it accepted, and then
+signing in as that student: `200` on `/participants`, `200` on `/export`. The probe study was empty,
+so nothing real was exposed — but with a course attached, a student could have exported their
+classmates' data.
+
+Fixed at both ends, because either alone would have done: creation refuses a student investigator
+(`409 STUDENT_CANNOT_LEAD_STUDY`), and `requireStudyAccess` refuses a STUDENT before it looks at any
+row, so a row can never grant what the role denies. Re-ran the probe: `403` on both. Two checks
+added to the research suite.
+
+**The institution roll was readable by anyone signed in.** A student on `/platform/admin` saw all
+three institutions with country and headcount; users and studies on the same page were correctly
+refused. The route's own comment said "Listing: any signed-in account", so it was a decision — but
+the account that needs the list is the one filling in a select, and a student has no select. Now
+refused for students, unchanged for everyone else, with checks on both sides.
+
+### The one that was only cosmetic, and still mattered
+
+**Every role page rendered for every role.** As a student, `/platform/instructor` drew the whole
+console — Rename, Unpublish, Duplicate, **Delete** beside the student's own courses, *+ New course*,
+the rubric panel. All eight write probes came back `403`, so nothing could be done and nothing
+leaked. What the page did instead was lie: the Students dialog said **"Nobody is enrolled yet"** for
+a course with two students, because its reads had been refused and the empty state does not know the
+difference between *nothing* and *not allowed to know*.
+
+`UI hiding is not security` is written into the student dashboard's own docstring and it is correct.
+The complement is also true: a console drawn for someone who may not use any of it is a usability
+failure even when it is a security success. `useRoleGuard` now sends a signed-in account to its own
+dashboard; administrators are still allowed on the instructor and researcher pages, because they
+genuinely work there. Verified in the browser for all three roles in both directions.
+
+### What the rest of the pass found
+
+Eighteen open items, written up one by one in **`docs/DEFECT_REGISTER.md`** with how to reproduce
+each. The ones to fix first, by what they cost the person:
+
+- **"Archive it" sometimes deletes.** The dialog explains the conditional rule correctly and then
+  labels the button unconditionally. On a course with students but no sessions, pressing *Archive
+  it* deletes permanently. The row already shows `last activity —`, so the client knows which
+  outcome applies.
+- **Restoring an archived course whose name has been reused fails with a bare `500`.** The
+  instructor archived something and cannot get it back, with no explanation.
+- **A refused edit throws away what you typed** — rename and add-institution both close and revert.
+- **The banner shows the previous error while the next request runs**, so you are told about the
+  wrong mistake for five seconds; and it reflows the controls beneath it, which caused a genuine
+  misclick during the audit.
+- **A student leaving a class lands in the generic chatbot.** The classroom page has *no links at
+  all*; the back arrow goes to the OpenMAIC workspace, not to their course list.
+- **A study cannot be edited or removed once created** — there is no `[studyId]` route at all, so
+  every study is DRAFT with no protocol id for ever. The fixture study's `PROTO-2026-001` was seeded
+  in SQL; the product cannot reproduce its own fixture data. This is a 3A gap, not a bug.
+
+### On whether the three dashboards are designed
+
+Honestly: the **instructor** page is. It has search, a status filter, a sort, inline rename, a
+dialog with three tabs, and help text that explains editor versus viewer in words a teacher would
+use.
+
+The **administration** page is not. It is one column 3,400 px tall holding four unrelated tables.
+The Users table has a search box; the courses table, at twice the length and with eighteen archived
+rows mixed into the live ones, has neither search nor filter. No counts, no navigation, no way to
+reach the fourth section without scrolling four screens.
+
+The **student** page is clean but shows the wrong things — instructor, last activity, and a raw
+course id. Nothing says what was assigned, what was submitted, or whether feedback is waiting, even
+though Level 3 computes all three and the student is who they are for.
+
+### Verified, and how
+
+- 227 API checks (58 + 50 + 42 + 35 + 42) and 23 unit tests, **0 failures**, after the changes.
+  The research suite grew from 46 to 50 — the four new authorization checks.
+- `npx tsc --noEmit` clean.
+- The three redirects and the two 403s re-checked by hand in the browser and by direct request.
+- All test data perturbed during the audit was put back: titles restored, the student re-enrolled
+  and the colleague removed, the three probe studies deleted. Studies are back to the one fixture.
+
+### What the next session must not assume
+
+- **The register is a list of findings, not of fixes.** Only F1, F2 and F3 are done. The eighteen
+  O-items are untouched; do not read the file as a changelog.
+- **Nothing here was tested on the live deployment.** Everything was local. The role-guard redirect
+  in particular is client-side and should be re-checked once deployed.
+- **O1 is about losing work.** If anything in the register gets fixed first, make it that one.
+
+### A finding from outside the audit, and the worse one
+
+Running `git status` at the end showed that **thirteen of the Level-3 deliverable documents were
+never in the repository**, along with the example research export. Upstream's `.gitignore` ignores
+`/docs` wholesale; this project allowlisted it back by *name pattern* — `LEVEL*.md`, `*_MANUAL.md`
+and four literals — which was written when the docs were called that. Every document added during
+Level 3 under a different name fell straight through the gap: `API.md`,
+`AUTHORIZATION_MODEL.md`, `DATABASE_SCHEMA.md`, `DATA_DICTIONARY.md`, `DEPLOYMENT.md`,
+`EXPERIMENT_CONFIGURATION.md`, `KNOWLEDGE_RESOURCE_ARCHITECTURE.md`,
+`MULTIMODAL_AND_INTEGRATION.md`, `PERFORMANCE_AND_PRODUCTION.md`, `RESEARCH_DATA_MODEL.md`,
+`RUBRIC_SYSTEM.md`, `SECURITY_TEST_REPORT.md`, `HOW_TO_TEST.pdf` and `docs/examples/`.
+
+They existed on one laptop. Every previous entry in this log that says a document "now exists" was
+true of the disk and false of the repository, and nobody would have noticed until the laptop did.
+
+The allowlist now admits `/docs/*.md`, `/docs/*.pdf` and `docs/examples/` rather than a list of
+names, so the next document added does not have to remember to register itself.

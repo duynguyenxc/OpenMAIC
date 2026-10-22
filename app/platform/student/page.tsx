@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlatformShell } from '@/components/level2/platform-shell';
-import { formatWhen, useCourses, useMe } from '@/lib/level2/use-platform';
+import { formatWhen, useCourses, useMe, useRoleGuard } from '@/lib/level2/use-platform';
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -27,6 +27,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     if (me === null) router.replace('/platform/login');
   }, [me, router]);
+  useRoleGuard(me, ['STUDENT']);
 
   if (!me) return <main className="p-6 text-sm text-muted-foreground">Loading…</main>;
 
