@@ -740,8 +740,10 @@ the owner, *"its owner already has"* for an administrator editing somebody else'
 
 ### Verified, and how
 
-- **232 API checks** (63 + 50 + 42 + 35 + 42) and the full unit suite, **0 failures**. The security
-  suite grew 58 → 63, the research suite 46 → 50, the classroom-exit tests 11 → 15.
+- **232 API checks** (63 + 50 + 42 + 35 + 42), **0 failures**. The security suite grew 58 → 63, the
+  research suite 46 → 50, the classroom-exit tests 11 → 15. *(Corrected in L15: this line first
+  said "and the full unit suite", which was wrong — the run covered `tests/level3` and
+  `tests/workbench`, not the repository's whole suite.)*
 - `npx tsc --noEmit` clean; the i18n suite passes with the new key in all twelve locales.
 - F4, F6, F7 and F8 re-checked by hand in the browser, as a student and as an administrator.
 - Test data left as found; the rename probe was cancelled and every course kept its name.
@@ -891,3 +893,51 @@ course that had vanished; only that one check accepts it, with the reason writte
 - The classroom's save refusal (F22) is quieter now but **still happens on every student open**. The
   real fix is not attempting the save, which lives in upstream's store and was judged too large to
   do safely here.
+
+## L15 — What the repository's whole unit suite actually does (2026-10-22)
+
+Running `npx vitest run` with no path — the **whole** suite, upstream's included — for what appears
+to be the first time in this project. It does not pass, and it never did.
+
+### First, a correction
+
+The L12 entry said "232 API checks **and the full unit suite**, 0 failures". That was wrong: the run
+behind it covered `tests/level3` and `tests/workbench`, not the repository. The line is corrected in
+place. Left standing it would have cost the next session hours, because they would have believed the
+suite was once green and gone looking for whoever broke it.
+
+### The numbers
+
+| | Files failed | Tests failed |
+|---|---|---|
+| Baseline `6b865715`, whole suite | 6 | **46** |
+| This branch `d3698981`, whole suite | 5 | **45** |
+
+`6b865715` is the commit immediately before this session's work, run in a throwaway worktree with
+the same `node_modules`. **This branch is not worse than the baseline; it is one failure better**,
+and that difference is noise rather than an improvement — see below.
+
+### Two different things are failing
+
+**Forty-four are deterministic and pre-existing.** Four files — `config/station-stage-keys`,
+`media/server-backed-media-orchestrator`, `quiz/runtime`, `runtime/chat-storage` — fail standalone,
+and they fail **identically in both trees**: `4 failed | 1 passed (5)`, `44 failed | 117 passed
+(161)`, the same two lines at the baseline and here. None of them touches Level 2 or Level 3: LLM
+station stage keys, multi-tab quiz races without Web Locks, media orchestration, and a chat-storage
+test timing out at 5003 ms.
+
+**The remaining one or two are flaky**, and which ones they are changes between runs. The baseline's
+whole-suite run failed `agent-runtime/chart-schema-lockstep` and `generation/browser-entry`; this
+branch's failed `workbench/workspace-rail-session-rename` instead. **All three pass standalone on
+this branch** (3 files, 8 tests, green), so they are order- or parallelism-dependent, not broken.
+That is also why 46 → 45 means nothing: a different flake landed, not a fixed test.
+
+### What this does and does not say
+
+- **Nothing in L11–L14 broke a test.** Proven by like-for-like, not asserted.
+- **The suite has never been a gate here**, and calling a run green without saying which paths it
+  covered is how L12's mistake happened. Say the paths or say nothing.
+- **The 44 are worth fixing**, but they are upstream's and none blocks this project. They belong in
+  `UPSTREAM_DELTA.md` as a known state, not in the defect register, which is about our own product.
+- The flakes make any whole-suite run unreliable as a pass/fail signal. Until they are fixed, the
+  honest check for our work is the five API suites plus the directories we touch, named explicitly.

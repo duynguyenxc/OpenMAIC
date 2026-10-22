@@ -161,3 +161,38 @@ registrations in `instrumentation.ts`.
 touches the four files above, three of which are a handful of lines each.
 
 Tag `level1-classroom-pilot` marks the working Level-1 state, so the two can always be compared.
+
+---
+
+## Upstream's unit suite does not pass, and did not before we arrived
+
+Measured on 22 October 2026 by running `npx vitest run` with no path at commit `6b865715` — the
+state immediately before this project's October audit work — in a throwaway worktree sharing the
+same `node_modules`.
+
+**Baseline: 6 files failed, 46 tests failed, 9,488 passed, 131 skipped.**
+
+Four of those files fail deterministically, standalone, and identically on every branch we have:
+
+| File | What it is about |
+|---|---|
+| `tests/config/station-stage-keys.test.ts` | LLM station ↔ runtime stage key contract |
+| `tests/media/server-backed-media-orchestrator.test.ts` | concurrent media passes over one course |
+| `tests/quiz/runtime.test.ts` | multi-tab quiz races without Web Locks |
+| `tests/runtime/chat-storage.test.ts` | append retries; times out at 5003 ms |
+
+Standalone they report `4 failed | 1 passed (5)` and `44 failed | 117 passed (161)`, the same two
+lines before and after our work. **None touches Level 2 or Level 3**, and none blocks this project.
+
+A further one or two failures appear in any whole-suite run and **change identity between runs** —
+`agent-runtime/chart-schema-lockstep` and `generation/browser-entry` at the baseline,
+`workbench/workspace-rail-session-rename` on our branch. All three pass standalone. They are order-
+or parallelism-dependent, so a whole-suite total is not a reliable pass/fail signal here.
+
+### What to do about it
+
+Nothing, for now — these are upstream's tests and upstream's bugs, and fixing them is not what this
+project was asked for. What matters is the consequence for us: **never report a vitest run as
+"green" without naming the paths it covered.** For our own work the honest check is the five API
+suites plus the directories we touched, each named. A bare "the unit suite passes" is not a
+statement this repository can support.
