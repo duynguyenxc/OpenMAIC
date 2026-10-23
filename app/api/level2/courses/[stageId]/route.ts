@@ -27,9 +27,7 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
          FROM courses WHERE openmaic_stage_id = $1`,
       [stageId],
     );
-    const course = current[0] as
-      | { ownerId: string; title: string; status: string }
-      | undefined;
+    const course = current[0] as { ownerId: string; title: string; status: string } | undefined;
     if (!course) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
 
     // An administrator may be editing somebody else's course, and "you already
@@ -59,7 +57,12 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
     }
     if (body.status !== undefined) {
       if (typeof body.status !== 'string' || !STATUSES.has(body.status)) {
-        return apiError(400, 'INVALID_STATUS', 'status must be DRAFT, PUBLISHED or ARCHIVED', headers);
+        return apiError(
+          400,
+          'INVALID_STATUS',
+          'status must be DRAFT, PUBLISHED or ARCHIVED',
+          headers,
+        );
       }
 
       // Bringing a course back out of the archive puts it under the unique
@@ -83,7 +86,8 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
       values.push(body.status);
       updates.push(`status = $${values.length}`);
     }
-    if (!updates.length) return apiError(400, 'NOTHING_TO_UPDATE', 'no title or status given', headers);
+    if (!updates.length)
+      return apiError(400, 'NOTHING_TO_UPDATE', 'no title or status given', headers);
 
     const { rows } = await pool.query(
       `UPDATE courses SET ${updates.join(', ')}

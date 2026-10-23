@@ -62,9 +62,15 @@ export function POST(req: Request): Promise<Response> {
 
     const visibility = typeof body.visibility === 'string' ? body.visibility : 'PRIVATE';
     if (!VISIBILITY.has(visibility)) {
-      return apiError(400, 'INVALID_VISIBILITY', 'visibility must be PRIVATE, INSTITUTION, COMMUNITY or ADMIN_ONLY', headers);
+      return apiError(
+        400,
+        'INVALID_VISIBILITY',
+        'visibility must be PRIVATE, INSTITUTION, COMMUNITY or ADMIN_ONLY',
+        headers,
+      );
     }
-    const version = typeof body.version === 'string' && body.version.trim() ? body.version.trim() : '1.0';
+    const version =
+      typeof body.version === 'string' && body.version.trim() ? body.version.trim() : '1.0';
 
     const pool = await level2Pool();
     const { rows: courseRows } = await pool.query(
@@ -74,7 +80,8 @@ export function POST(req: Request): Promise<Response> {
     const course = courseRows[0] as { id: string; title: string } | undefined;
     if (!course) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
 
-    const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : course.title;
+    const title =
+      typeof body.title === 'string' && body.title.trim() ? body.title.trim() : course.title;
 
     const { rows } = await pool.query(
       `INSERT INTO course_templates
@@ -86,18 +93,32 @@ export function POST(req: Request): Promise<Response> {
        ON CONFLICT (created_by, lower(title), version) DO NOTHING
        RETURNING id, title, version, visibility`,
       [
-        title, body.description ?? null, course.id, stageId, version, actor.profileId,
-        visibility, body.discipline ?? null,
+        title,
+        body.description ?? null,
+        course.id,
+        stageId,
+        version,
+        actor.profileId,
+        visibility,
+        body.discipline ?? null,
         Array.isArray(body.tags) ? body.tags : null,
       ],
     );
     if (!rows[0]) {
-      return apiError(409, 'VERSION_EXISTS', 'you already published that title at that version; raise the version', headers);
+      return apiError(
+        409,
+        'VERSION_EXISTS',
+        'you already published that title at that version; raise the version',
+        headers,
+      );
     }
     const created = rows[0] as { id: string; title: string; version: string };
-    await audit({ profileId: actor.profileId }, 'TEMPLATE_PUBLISHED',
+    await audit(
+      { profileId: actor.profileId },
+      'TEMPLATE_PUBLISHED',
       { type: 'template', id: created.id },
-      { title: created.title, version: created.version, visibility, fromCourse: stageId });
+      { title: created.title, version: created.version, visibility, fromCourse: stageId },
+    );
     return json(created, 201, headers);
   });
 }

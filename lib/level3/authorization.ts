@@ -11,7 +11,11 @@
  * to modify courses."* Nothing in this file grants course access, and the
  * RESEARCHER role has no course permission anywhere in the platform.
  */
-import { AuthorizationError, requireAuthenticatedUser, type Actor } from '@/lib/level2/authorization';
+import {
+  AuthorizationError,
+  requireAuthenticatedUser,
+  type Actor,
+} from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 
 export type StudyRole = 'RESEARCHER' | 'DATA_MANAGER' | 'OBSERVER';

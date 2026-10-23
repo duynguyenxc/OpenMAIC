@@ -15,15 +15,34 @@
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
 
-const env = Object.fromEntries(readFileSync('.env.local','utf8').split('\n')
-  .filter(l=>l.includes('=')&&!l.trimStart().startsWith('#'))
-  .map(l=>{const i=l.indexOf('=');return[l.slice(0,i).trim(),l.slice(i+1).trim().replace(/^"|"$/g,'')]}));
-const pw = Object.fromEntries(readFileSync('.env.level2-test-accounts','utf8').split('\n')
-  .filter(l=>l.includes('@')).map(l=>{const i=l.indexOf('=');return[l.slice(0,i),l.slice(i+1)]}));
+const env = Object.fromEntries(
+  readFileSync('.env.local', 'utf8')
+    .split('\n')
+    .filter((l) => l.includes('=') && !l.trimStart().startsWith('#'))
+    .map((l) => {
+      const i = l.indexOf('=');
+      return [
+        l.slice(0, i).trim(),
+        l
+          .slice(i + 1)
+          .trim()
+          .replace(/^"|"$/g, ''),
+      ];
+    }),
+);
+const pw = Object.fromEntries(
+  readFileSync('.env.level2-test-accounts', 'utf8')
+    .split('\n')
+    .filter((l) => l.includes('@'))
+    .map((l) => {
+      const i = l.indexOf('=');
+      return [l.slice(0, i), l.slice(i + 1)];
+    }),
+);
 
 const SUPA = env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL;
-const KEY  = env.SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const REF  = new URL(SUPA).hostname.split('.')[0];
+const KEY = env.SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const REF = new URL(SUPA).hostname.split('.')[0];
 // Defaults to the local server on purpose. Pointing a burst at the live
 // deployment triggers the host's own bot mitigation — measured on 22 October
 // 2026, when eight simultaneous requests from one address earned an
@@ -42,12 +61,16 @@ let poolExhausted = 0;
 
 async function signIn(email) {
   const r = await fetch(`${SUPA}/auth/v1/token?grant_type=password`, {
-    method:'POST', headers:{apikey:KEY,'Content-Type':'application/json'},
-    body: JSON.stringify({ email, password: pw[email] }) });
+    method: 'POST',
+    headers: { apikey: KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: pw[email] }),
+  });
   const s = await r.json();
   if (!r.ok) throw new Error(`sign-in ${email}: ${JSON.stringify(s)}`);
-  return { cookie: `sb-${REF}-auth-token=base64-${Buffer.from(JSON.stringify(s)).toString('base64url')}`,
-           userId: s.user.id };
+  return {
+    cookie: `sb-${REF}-auth-token=base64-${Buffer.from(JSON.stringify(s)).toString('base64url')}`,
+    userId: s.user.id,
+  };
 }
 
 /** Percentiles, because a mean hides the slow tail that users actually feel. */
@@ -109,8 +132,8 @@ async function burst(label, make) {
   const s = stats(samples);
   console.log(
     `  ${label.padEnd(34)} median ${String(s.median).padStart(5)} ms   ` +
-    `p90 ${String(s.p90).padStart(5)} ms   max ${String(s.max).padStart(6)} ms   ` +
-    `${failures ? `${failures}/${s.n} FAILED` : `${s.n}/${s.n} ok`}`,
+      `p90 ${String(s.p90).padStart(5)} ms   max ${String(s.max).padStart(6)} ms   ` +
+      `${failures ? `${failures}/${s.n} FAILED` : `${s.n}/${s.n} ok`}`,
   );
   return { label, ...s, failures };
 }
@@ -123,76 +146,107 @@ const instructor = await signIn('instructor1@example.test');
 const findings = [];
 
 console.log('PAGE RESPONSE');
-findings.push(await burst('sign-in page (unauthenticated)', () =>
-  fetch(`${BASE}/platform/login`).then(async (r) => r.ok || (await hostRefused(r)))));
-findings.push(await burst('student dashboard data', () =>
-  fetch(`${BASE}/api/level2/courses`, { headers: { cookie: student.cookie } })
-    .then(async (r) => r.ok || (await hostRefused(r)))));
-findings.push(await burst('identity check (/me)', () =>
-  fetch(`${BASE}/api/level2/me`, { headers: { cookie: student.cookie } })
-    .then(async (r) => r.ok || (await hostRefused(r)))));
+findings.push(
+  await burst('sign-in page (unauthenticated)', () =>
+    fetch(`${BASE}/platform/login`).then(async (r) => r.ok || (await hostRefused(r))),
+  ),
+);
+findings.push(
+  await burst('student dashboard data', () =>
+    fetch(`${BASE}/api/level2/courses`, { headers: { cookie: student.cookie } }).then(
+      async (r) => r.ok || (await hostRefused(r)),
+    ),
+  ),
+);
+findings.push(
+  await burst('identity check (/me)', () =>
+    fetch(`${BASE}/api/level2/me`, { headers: { cookie: student.cookie } }).then(
+      async (r) => r.ok || (await hostRefused(r)),
+    ),
+  ),
+);
 
 console.log('\nDATABASE');
-findings.push(await burst('course results (joins + counts)', async () => {
-  const { rows } = await pool.query(
-    `SELECT openmaic_stage_id FROM courses WHERE status = 'PUBLISHED' LIMIT 1`);
-  if (!rows[0]) return true;
-  const r = await fetch(`${BASE}/api/level2/courses/${rows[0].openmaic_stage_id}/results`,
-    { headers: { cookie: instructor.cookie } });
-  return r.ok || r.status === 403;
-}));
-findings.push(await burst('direct query round trip', () =>
-  pool.query('SELECT 1').then(() => true)));
+findings.push(
+  await burst('course results (joins + counts)', async () => {
+    const { rows } = await pool.query(
+      `SELECT openmaic_stage_id FROM courses WHERE status = 'PUBLISHED' LIMIT 1`,
+    );
+    if (!rows[0]) return true;
+    const r = await fetch(`${BASE}/api/level2/courses/${rows[0].openmaic_stage_id}/results`, {
+      headers: { cookie: instructor.cookie },
+    });
+    return r.ok || r.status === 403;
+  }),
+);
+findings.push(
+  await burst('direct query round trip', () => pool.query('SELECT 1').then(() => true)),
+);
 
 console.log('\nRUNTIME-RECORD WRITES');
 {
   const { rows } = await pool.query(
-    `SELECT openmaic_stage_id AS id FROM courses WHERE status = 'PUBLISHED' LIMIT 1`);
+    `SELECT openmaic_stage_id AS id FROM courses WHERE status = 'PUBLISHED' LIMIT 1`,
+  );
   const stageId = rows[0]?.id;
-  findings.push(await burst('runtime session write', async (i) => {
-    if (!stageId) return true;
-    const id = `load-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
-    await pool.query(
-      `INSERT INTO runtime_sessions (id, stage_id, learner_key, kind, status, created_at, updated_at, data)
+  findings.push(
+    await burst('runtime session write', async (i) => {
+      if (!stageId) return true;
+      const id = `load-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`;
+      await pool.query(
+        `INSERT INTO runtime_sessions (id, stage_id, learner_key, kind, status, created_at, updated_at, data)
        VALUES ($1,$2,$3,'chat','active',$4,$4,'{}'::jsonb)`,
-      [id, stageId, `user:${student.userId}`, new Date().toISOString()]);
-    await pool.query(`DELETE FROM runtime_sessions WHERE id = $1`, [id]);
-    return true;
-  }));
+        [id, stageId, `user:${student.userId}`, new Date().toISOString()],
+      );
+      await pool.query(`DELETE FROM runtime_sessions WHERE id = $1`, [id]);
+      return true;
+    }),
+  );
 }
 
 console.log('\nFILE UPLOAD');
 {
   const PNG = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-    'base64');
+    'base64',
+  );
   // A refused upload still exercises the whole request path — body parsing,
   // auth, validation — without leaving rows behind on a live deployment.
-  findings.push(await burst('upload request path (refused type)', async () => {
-    const form = new FormData();
-    form.set('stageId', 'does-not-exist'); form.set('activityId', 'sc1');
-    form.set('kind', 'HANDWRITTEN_IMAGE');
-    form.set('file', new File([PNG], 'p.csv', { type: 'text/csv' }));
-    const r = await fetch(`${BASE}/api/level3/responses/media`,
-      { method: 'POST', headers: { cookie: student.cookie }, body: form });
-    return r.status === 400 || r.status === 404 || r.status === 403;
-  }));
+  findings.push(
+    await burst('upload request path (refused type)', async () => {
+      const form = new FormData();
+      form.set('stageId', 'does-not-exist');
+      form.set('activityId', 'sc1');
+      form.set('kind', 'HANDWRITTEN_IMAGE');
+      form.set('file', new File([PNG], 'p.csv', { type: 'text/csv' }));
+      const r = await fetch(`${BASE}/api/level3/responses/media`, {
+        method: 'POST',
+        headers: { cookie: student.cookie },
+        body: form,
+      });
+      return r.status === 400 || r.status === 404 || r.status === 403;
+    }),
+  );
 }
 
 console.log('\nAI LATENCY');
-console.log(`  ${'(measured in the 3B and 3C suites)'.padEnd(34)} assessment and feedback are the only`);
+console.log(
+  `  ${'(measured in the 3B and 3C suites)'.padEnd(34)} assessment and feedback are the only`,
+);
 console.log(`  ${''.padEnd(34)} calls here counted in seconds`);
 
 console.log('\n── What these numbers mean ─────────────────────────────────');
 const slowest = findings.filter((f) => f).sort((a, b) => b.p90 - a.p90)[0];
 const anyFailures = findings.some((f) => f && f.failures > 0);
 console.log(`  Slowest at p90: ${slowest.label} (${slowest.p90} ms)`);
-console.log(`  Failures under load: ${anyFailures ? 'YES — see above' : 'none at this concurrency'}`);
+console.log(
+  `  Failures under load: ${anyFailures ? 'YES — see above' : 'none at this concurrency'}`,
+);
 if (poolExhausted > 0) {
   console.log(`\n  THE LIMIT, NAMED: the database pool was exhausted ${poolExhausted} time(s).`);
-  console.log('  Supabase\'s session-mode pooler caps at 15 clients in total, shared between');
+  console.log("  Supabase's session-mode pooler caps at 15 clients in total, shared between");
   console.log('  the application and anything else connecting. That is the first thing to');
-  console.log('  break here — before the host\'s edge, before any model rate limit.');
+  console.log("  break here — before the host's edge, before any model rate limit.");
 }
 if (mitigated > 0) {
   console.log(`  Host edge protection answered ${mitigated} request(s) with a challenge.`);

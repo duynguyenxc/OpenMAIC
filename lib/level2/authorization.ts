@@ -109,10 +109,9 @@ export async function hasActiveEnrollment(actor: Actor, stageId: string): Promis
  */
 async function courseExists(stageId: string): Promise<boolean> {
   const pool = await level2Pool();
-  const { rows } = await pool.query(
-    `SELECT 1 FROM courses WHERE openmaic_stage_id = $1 LIMIT 1`,
-    [stageId],
-  );
+  const { rows } = await pool.query(`SELECT 1 FROM courses WHERE openmaic_stage_id = $1 LIMIT 1`, [
+    stageId,
+  ]);
   return rows.length > 0;
 }
 
@@ -187,7 +186,10 @@ export async function requireCourseEnrollment(
  * the stage itself, which covers the moment between a course being created
  * and its `courses` row being visible.
  */
-export async function mayReadCourse(ownerId: string | undefined, stageId: string): Promise<boolean> {
+export async function mayReadCourse(
+  ownerId: string | undefined,
+  stageId: string,
+): Promise<boolean> {
   const actor = await actorForOwner(ownerId);
   if (!actor) return false;
   if (actor.role === 'ADMIN') return true;
@@ -204,9 +206,7 @@ export async function mayReadCourse(ownerId: string | undefined, stageId: string
 
 /** Whether Level-2 course authorization is active at all. */
 export function courseAuthorizationEnabled(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL,
-  );
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL);
 }
 
 export type { UserProfile };

@@ -109,7 +109,8 @@ export function DELETE(req: Request, { params }: Params): Promise<Response> {
     const { stageId } = await params;
     await requireCourseOwner(ownerId, stageId);
     const email = new URL(req.url).searchParams.get('email');
-    if (!email) return apiError(400, 'EMAIL_REQUIRED', 'email query parameter is required', headers);
+    if (!email)
+      return apiError(400, 'EMAIL_REQUIRED', 'email query parameter is required', headers);
 
     const pool = await level2Pool();
     const { rows } = await pool.query(
@@ -122,7 +123,12 @@ export function DELETE(req: Request, { params }: Params): Promise<Response> {
       [stageId, email],
     );
     if (!rows[0]) {
-      return apiError(404, 'NOT_A_CO_INSTRUCTOR', 'not a removable co-instructor of this course', headers);
+      return apiError(
+        404,
+        'NOT_A_CO_INSTRUCTOR',
+        'not a removable co-instructor of this course',
+        headers,
+      );
     }
     return json({ removed: email }, 200, headers);
   });

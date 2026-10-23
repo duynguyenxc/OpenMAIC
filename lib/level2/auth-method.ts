@@ -105,9 +105,7 @@ export function supabaseOwnerAuthMethod(): OwnerAuthMethod {
      * the contract asks for what the id *always* carries.
      */
     describeStoredOwner(ownerId) {
-      return authUserIdFromOwnerId(ownerId) === undefined
-        ? undefined
-        : { kind: 'user' as const };
+      return authUserIdFromOwnerId(ownerId) === undefined ? undefined : { kind: 'user' as const };
     },
   };
 }

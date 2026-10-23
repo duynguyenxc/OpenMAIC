@@ -10,8 +10,11 @@
  * a response with no text and a job that can be retried; it never loses what
  * the student actually submitted.
  */
-import { requireAuthenticatedUser, requireCourseEnrollment, requireCourseInstructor }
-  from '@/lib/level2/authorization';
+import {
+  requireAuthenticatedUser,
+  requireCourseEnrollment,
+  requireCourseInstructor,
+} from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 import { enqueue } from '@/lib/level3/jobs';
 import { ACCEPTED, MAX_UPLOAD_BYTES, type MediaKind } from '@/lib/level3/media';
@@ -25,7 +28,8 @@ export function POST(req: Request): Promise<Response> {
     const actor = await requireAuthenticatedUser(ownerId);
 
     const form = await req.formData().catch(() => null);
-    if (!form) return apiError(400, 'FORM_REQUIRED', 'send the file as multipart/form-data', headers);
+    if (!form)
+      return apiError(400, 'FORM_REQUIRED', 'send the file as multipart/form-data', headers);
 
     const stageId = String(form.get('stageId') ?? '');
     const activityId = String(form.get('activityId') ?? '').trim();
@@ -36,21 +40,34 @@ export function POST(req: Request): Promise<Response> {
       return apiError(400, 'COURSE_REQUIRED', 'a course and an activity are required', headers);
     }
     if (kind !== 'HANDWRITTEN_IMAGE' && kind !== 'AUDIO_RESPONSE') {
-      return apiError(400, 'INVALID_KIND', 'kind must be HANDWRITTEN_IMAGE or AUDIO_RESPONSE', headers);
+      return apiError(
+        400,
+        'INVALID_KIND',
+        'kind must be HANDWRITTEN_IMAGE or AUDIO_RESPONSE',
+        headers,
+      );
     }
     if (!(file instanceof File)) {
       return apiError(400, 'FILE_REQUIRED', 'a file is required', headers);
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      return apiError(413, 'FILE_TOO_LARGE',
-        `that file is ${(file.size / 1e6).toFixed(1)} MB; the limit is ${MAX_UPLOAD_BYTES / 1e6} MB`, headers);
+      return apiError(
+        413,
+        'FILE_TOO_LARGE',
+        `that file is ${(file.size / 1e6).toFixed(1)} MB; the limit is ${MAX_UPLOAD_BYTES / 1e6} MB`,
+        headers,
+      );
     }
     const contentType = file.type || 'application/octet-stream';
     if (!ACCEPTED[kind].includes(contentType)) {
       // Said plainly rather than attempted and failed later: a format we
       // cannot read is refused at the door, with the list.
-      return apiError(400, 'UNSUPPORTED_TYPE',
-        `${contentType} is not accepted for ${kind}; try ${ACCEPTED[kind].join(', ')}`, headers);
+      return apiError(
+        400,
+        'UNSUPPORTED_TYPE',
+        `${contentType} is not accepted for ${kind}; try ${ACCEPTED[kind].join(', ')}`,
+        headers,
+      );
     }
 
     if (actor.role === 'STUDENT') await requireCourseEnrollment(ownerId, stageId);
@@ -58,7 +75,9 @@ export function POST(req: Request): Promise<Response> {
 
     const pool = await level2Pool();
     const { rows: courseRows } = await pool.query(
-      `SELECT id FROM courses WHERE openmaic_stage_id = $1`, [stageId]);
+      `SELECT id FROM courses WHERE openmaic_stage_id = $1`,
+      [stageId],
+    );
     const course = courseRows[0] as { id: string } | undefined;
     if (!course) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
 
@@ -67,8 +86,9 @@ export function POST(req: Request): Promise<Response> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',
-        [`response:${course.id}:${actor.profileId}:${activityId}`]);
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `response:${course.id}:${actor.profileId}:${activityId}`,
+      ]);
 
       const { rows: last } = await client.query(
         `SELECT id, attempt_number AS "attemptNumber" FROM learner_responses
@@ -86,11 +106,23 @@ export function POST(req: Request): Promise<Response> {
             response_type, original_input, response_text, processing_metadata)
          VALUES ($1,$2,$3,$4,$5,$6,$7,'',$8)
          RETURNING id, attempt_number AS "attemptNumber"`,
-        [course.id, actor.profileId, activityId,
-         (previous?.attemptNumber ?? 0) + 1, previous?.id ?? null, kind,
-         `${kind}: ${file.name || 'upload'}`,
-         { source: kind, status: 'queued', originalName: file.name || null,
-           contentType, byteSize: bytes.length, receivedAt: new Date().toISOString() }],
+        [
+          course.id,
+          actor.profileId,
+          activityId,
+          (previous?.attemptNumber ?? 0) + 1,
+          previous?.id ?? null,
+          kind,
+          `${kind}: ${file.name || 'upload'}`,
+          {
+            source: kind,
+            status: 'queued',
+            originalName: file.name || null,
+            contentType,
+            byteSize: bytes.length,
+            receivedAt: new Date().toISOString(),
+          },
+        ],
       );
       const response = created[0] as { id: string; attemptNumber: number };
 

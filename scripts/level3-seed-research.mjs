@@ -16,7 +16,16 @@ const env = Object.fromEntries(
   readFileSync('.env.local', 'utf8')
     .split('\n')
     .filter((l) => l.includes('=') && !l.trimStart().startsWith('#'))
-    .map((l) => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, '')]; }),
+    .map((l) => {
+      const i = l.indexOf('=');
+      return [
+        l.slice(0, i).trim(),
+        l
+          .slice(i + 1)
+          .trim()
+          .replace(/^"|"$/g, ''),
+      ];
+    }),
 );
 const SUPABASE_URL = env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL;
 const SECRET = env.SUPABASE_SECRET_KEY;
@@ -25,23 +34,46 @@ if (!SUPABASE_URL || !SECRET) throw new Error('Supabase URL or secret key missin
 const INSTITUTIONS = [
   { short: 'US', name: 'Institution US', country: 'United States', type: 'UNIVERSITY' },
   { short: 'UK', name: 'Institution UK', country: 'United Kingdom', type: 'UNIVERSITY' },
-  { short: 'AU', name: 'Institution AU', country: 'Australia',     type: 'UNIVERSITY' },
+  { short: 'AU', name: 'Institution AU', country: 'Australia', type: 'UNIVERSITY' },
 ];
 
 const ACCOUNTS = [
   { email: 'instructor-us@example.test', role: 'INSTRUCTOR', name: 'Instructor US', inst: 'US' },
   { email: 'instructor-uk@example.test', role: 'INSTRUCTOR', name: 'Instructor UK', inst: 'UK' },
   { email: 'instructor-au@example.test', role: 'INSTRUCTOR', name: 'Instructor AU', inst: 'AU' },
-  { email: 'student-us@example.test', role: 'STUDENT', name: 'Student US', inst: 'US', ext: 'US-00001' },
-  { email: 'student-uk@example.test', role: 'STUDENT', name: 'Student UK', inst: 'UK', ext: 'UK-00001' },
-  { email: 'student-au@example.test', role: 'STUDENT', name: 'Student AU', inst: 'AU', ext: 'AU-00001' },
+  {
+    email: 'student-us@example.test',
+    role: 'STUDENT',
+    name: 'Student US',
+    inst: 'US',
+    ext: 'US-00001',
+  },
+  {
+    email: 'student-uk@example.test',
+    role: 'STUDENT',
+    name: 'Student UK',
+    inst: 'UK',
+    ext: 'UK-00001',
+  },
+  {
+    email: 'student-au@example.test',
+    role: 'STUDENT',
+    name: 'Student AU',
+    inst: 'AU',
+    ext: 'AU-00001',
+  },
   { email: 'researcher@example.test', role: 'RESEARCHER', name: 'Test Researcher', inst: 'US' },
 ];
 
 async function admin(path, init) {
   const res = await fetch(`${SUPABASE_URL}/auth/v1/admin${path}`, {
     ...init,
-    headers: { apikey: SECRET, Authorization: `Bearer ${SECRET}`, 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      apikey: SECRET,
+      Authorization: `Bearer ${SECRET}`,
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`${path} -> ${res.status} ${JSON.stringify(body)}`);
@@ -98,19 +130,25 @@ for (const a of ACCOUNTS) {
     [instIds[a.inst], a.role === 'STUDENT' ? 'MEMBER' : 'STAFF', user.id],
   );
   if (password) lines.push(`${a.email}=${password}`);
-  console.log(`  ${a.role.padEnd(11)} ${a.email.padEnd(32)} ${a.inst}  ${password ? 'created' : 'already existed'}`);
+  console.log(
+    `  ${a.role.padEnd(11)} ${a.email.padEnd(32)} ${a.inst}  ${password ? 'created' : 'already existed'}`,
+  );
 }
 
 if (lines.length) {
   const file = '.env.level2-test-accounts';
   const head = existsSync(file) ? readFileSync(file, 'utf8').trimEnd() + '\n' : '';
-  writeFileSync(file, `${head}# Level 3 research fixture — test-only passwords.\n${lines.join('\n')}\n`);
+  writeFileSync(
+    file,
+    `${head}# Level 3 research fixture — test-only passwords.\n${lines.join('\n')}\n`,
+  );
   console.log(`\n  ${lines.length} new password(s) appended to ${file}`);
 }
 
 console.log('\nSTUDY');
 const { rows: pi } = await pool.query(
-  `SELECT id FROM user_profiles WHERE email = 'researcher@example.test'`);
+  `SELECT id FROM user_profiles WHERE email = 'researcher@example.test'`,
+);
 const { rows: study } = await pool.query(
   `INSERT INTO studies (title, description, principal_investigator, protocol_identifier, status,
                         start_date)
@@ -126,16 +164,20 @@ const { rows: study } = await pool.query(
 );
 let studyId = study[0]?.id;
 if (!studyId) {
-  const { rows } = await pool.query(
-    `SELECT id FROM studies WHERE title = $1 LIMIT 1`,
-    ['Cross-institution comparison of agent conditions']);
+  const { rows } = await pool.query(`SELECT id FROM studies WHERE title = $1 LIMIT 1`, [
+    'Cross-institution comparison of agent conditions',
+  ]);
   studyId = rows[0].id;
 }
 await pool.query(
   `INSERT INTO study_researchers (study_id, user_id, role) VALUES ($1, $2, 'RESEARCHER')
-   ON CONFLICT DO NOTHING`, [studyId, pi[0].id]);
+   ON CONFLICT DO NOTHING`,
+  [studyId, pi[0].id],
+);
 console.log(`  study ${studyId}`);
 console.log(`  principal investigator: researcher@example.test`);
 
 await pool.end();
-console.log('\nSeeded. Clone a template into each institution with scripts/level3-research-tests.mjs.');
+console.log(
+  '\nSeeded. Clone a template into each institution with scripts/level3-research-tests.mjs.',
+);

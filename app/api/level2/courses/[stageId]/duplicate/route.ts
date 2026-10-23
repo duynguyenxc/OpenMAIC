@@ -79,9 +79,7 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
           : `${platformTitle.slice(0, TITLE_MAX - SUFFIX.length).trimEnd()}${SUFFIX}`;
 
       const askedFor =
-        typeof body.title === 'string' && body.title.trim()
-          ? body.title.trim()
-          : generated;
+        typeof body.title === 'string' && body.title.trim() ? body.title.trim() : generated;
 
       const problem = titleProblem(askedFor);
       if (problem) return apiError(400, 'INVALID_TITLE', problem, headers);
@@ -100,8 +98,8 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const lock = await pool.connect();
       await lock.query('SELECT pg_advisory_lock(hashtext($1))', [lockKey]);
       try {
-      const { rows: recent } = await pool.query(
-        `SELECT c.openmaic_stage_id AS "stageId", c.title
+        const { rows: recent } = await pool.query(
+          `SELECT c.openmaic_stage_id AS "stageId", c.title
            FROM courses c
            JOIN user_profiles up ON up.id = c.owner_instructor_id
           WHERE (c.title = $1 OR c.title LIKE $1 || ' %')
@@ -109,40 +107,48 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
             AND c.created_at > now() - interval '15 seconds'
           ORDER BY c.created_at DESC
           LIMIT 1`,
-        [askedFor, (principal.ownerId ?? '').replace(/^user:/, '')],
-      );
-      if (recent[0]) {
-        const already = recent[0] as { stageId: string; title: string };
-        return json(
-          { stageId: already.stageId, title: already.title, copiedFrom: stageId, deduplicated: true },
-          200,
-          headers,
+          [askedFor, (principal.ownerId ?? '').replace(/^user:/, '')],
         );
-      }
+        if (recent[0]) {
+          const already = recent[0] as { stageId: string; title: string };
+          return json(
+            {
+              stageId: already.stageId,
+              title: already.title,
+              copiedFrom: stageId,
+              deduplicated: true,
+            },
+            200,
+            headers,
+          );
+        }
 
-      // "X (copy)" is generated, not typed, so it is numbered until free:
-      // "X (copy)", "X (copy) 2", "X (copy) 3". Titles are unique per owner.
-      const ownerProfileId = sourceCourse?.ownerId;
-      const title = ownerProfileId
-        ? await freeTitleNear(pool, ownerProfileId, askedFor)
-        : askedFor;
+        // "X (copy)" is generated, not typed, so it is numbered until free:
+        // "X (copy)", "X (copy) 2", "X (copy) 3". Titles are unique per owner.
+        const ownerProfileId = sourceCourse?.ownerId;
+        const title = ownerProfileId
+          ? await freeTitleNear(pool, ownerProfileId, askedFor)
+          : askedFor;
 
-      const copyId = newStageId();
+        const copyId = newStageId();
 
-      const now = Date.now();
-      // Every scene carries the id of the document it belongs to, and the
-      // storage layer refuses a save where the two disagree. Rewriting only
-      // stage.id would leave each scene pointing at the original.
-      await store.saveDocument({
-        ...source,
-        stage: { ...source.stage, id: copyId, name: title, createdAt: now, updatedAt: now },
-        scenes: source.scenes.map((scene) => ({ ...scene, stageId: copyId })),
-      } as typeof source);
+        const now = Date.now();
+        // Every scene carries the id of the document it belongs to, and the
+        // storage layer refuses a save where the two disagree. Rewriting only
+        // stage.id would leave each scene pointing at the original.
+        await store.saveDocument({
+          ...source,
+          stage: { ...source.stage, id: copyId, name: title, createdAt: now, updatedAt: now },
+          scenes: source.scenes.map((scene) => ({ ...scene, stageId: copyId })),
+        } as typeof source);
 
-      // The hook created the row with a placeholder title; give it the real one.
-      await pool.query(`UPDATE courses SET title = $2 WHERE openmaic_stage_id = $1`, [copyId, title]);
+        // The hook created the row with a placeholder title; give it the real one.
+        await pool.query(`UPDATE courses SET title = $2 WHERE openmaic_stage_id = $1`, [
+          copyId,
+          title,
+        ]);
 
-      return json({ stageId: copyId, title, copiedFrom: stageId }, 201, headers);
+        return json({ stageId: copyId, title, copiedFrom: stageId }, 201, headers);
       } finally {
         await lock.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]).catch(() => {});
         lock.release();

@@ -67,7 +67,9 @@ function toProfile(row: ProfileRow): UserProfile {
 const PROFILE_COLUMNS =
   'id, auth_user_id, email, display_name, role, external_identifier, institution, status';
 
-export async function findProfileByAuthUserId(authUserId: string): Promise<UserProfile | undefined> {
+export async function findProfileByAuthUserId(
+  authUserId: string,
+): Promise<UserProfile | undefined> {
   const pool = await level2Pool();
   const { rows } = await pool.query<ProfileRow>(
     `SELECT ${PROFILE_COLUMNS} FROM user_profiles WHERE auth_user_id = $1`,

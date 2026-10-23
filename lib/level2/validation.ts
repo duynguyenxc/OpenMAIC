@@ -23,6 +23,7 @@ export const TITLE_MAX = 200;
 export function titleProblem(title: string): string | null {
   const trimmed = title.trim();
   if (!trimmed) return 'a course title cannot be empty';
-  if (trimmed.length > TITLE_MAX) return `a course title cannot be longer than ${TITLE_MAX} characters`;
+  if (trimmed.length > TITLE_MAX)
+    return `a course title cannot be longer than ${TITLE_MAX} characters`;
   return null;
 }

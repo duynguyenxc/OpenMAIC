@@ -11,8 +11,11 @@
  * is from the session — the browser cannot name a learner, exactly as in the
  * runtime path Level 2 hardened.
  */
-import { requireAuthenticatedUser, requireCourseEnrollment, requireCourseInstructor }
-  from '@/lib/level2/authorization';
+import {
+  requireAuthenticatedUser,
+  requireCourseEnrollment,
+  requireCourseInstructor,
+} from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 import { apiError, json, withOwner } from '@/lib/level2/route-helpers';
 
@@ -64,7 +67,12 @@ export function POST(req: Request): Promise<Response> {
     const activityId = typeof body.activityId === 'string' ? body.activityId.trim() : '';
     const text = typeof body.responseText === 'string' ? body.responseText.trim() : '';
     if (!stageId || !activityId || !text) {
-      return apiError(400, 'RESPONSE_REQUIRED', 'a course, an activity and a response are required', headers);
+      return apiError(
+        400,
+        'RESPONSE_REQUIRED',
+        'a course, an activity and a response are required',
+        headers,
+      );
     }
 
     // A student must be enrolled; an instructor may answer their own course
@@ -74,7 +82,9 @@ export function POST(req: Request): Promise<Response> {
 
     const pool = await level2Pool();
     const { rows: courseRows } = await pool.query(
-      `SELECT id FROM courses WHERE openmaic_stage_id = $1`, [stageId]);
+      `SELECT id FROM courses WHERE openmaic_stage_id = $1`,
+      [stageId],
+    );
     const course = courseRows[0] as { id: string } | undefined;
     if (!course) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
 
@@ -83,8 +93,9 @@ export function POST(req: Request): Promise<Response> {
       await client.query('BEGIN');
       // Serialised per learner and activity: two submissions at once must not
       // take the same attempt number, which the unique index would refuse.
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',
-        [`response:${course.id}:${actor.profileId}:${activityId}`]);
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `response:${course.id}:${actor.profileId}:${activityId}`,
+      ]);
 
       const { rows: last } = await client.query(
         `SELECT id, attempt_number AS "attemptNumber" FROM learner_responses
@@ -101,13 +112,16 @@ export function POST(req: Request): Promise<Response> {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id, attempt_number AS "attemptNumber", parent_attempt_id AS "parentAttemptId"`,
         [
-          course.id, actor.profileId, activityId,
+          course.id,
+          actor.profileId,
+          activityId,
           (previous?.attemptNumber ?? 0) + 1,
           previous?.id ?? null,
           'TYPED_TEXT',
           // Typed text is its own original. Handwriting and audio (3D) will
           // put the raw upload here and the transcription in response_text.
-          text, text,
+          text,
+          text,
           { source: 'typed', receivedAt: new Date().toISOString() },
         ],
       );

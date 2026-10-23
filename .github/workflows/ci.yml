@@ -139,12 +139,17 @@ jobs:
 
       # These four do not share state. Sequential they were ~2 minutes; the
       # slowest (ESLint) is the new bound.
+      #
+      # tsc carries an explicit heap: four Node processes share the runner, and
+      # with this fork's added Level-2/3 sources tsc died at the ~2 GB default
+      # with "Ineffective mark-compacts near heap limit" (exit 134), which
+      # reads like a type error and is not one. Local `tsc --noEmit` is clean.
       - name: Prettier, ESLint, TypeScript, i18n
         run: |
           scripts/ci-run-parallel.sh \
             'prettier' 'pnpm check' \
             'eslint' 'pnpm lint' \
-            'tsc' 'npx tsc --noEmit' \
+            'tsc' 'NODE_OPTIONS=--max-old-space-size=6144 npx tsc --noEmit' \
             'i18n' 'pnpm check:i18n-keys'
 
       # Keep these sequential. Running root vitest alongside the storage

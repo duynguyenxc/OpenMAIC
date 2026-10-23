@@ -49,12 +49,23 @@ export function POST(req: Request): Promise<Response> {
       [name, shortName, body.country ?? null, body.institutionType ?? null],
     );
     if (!rows[0]) {
-      return apiError(409, 'SHORT_NAME_IN_USE', 'an institution with that short name exists', headers);
+      return apiError(
+        409,
+        'SHORT_NAME_IN_USE',
+        'an institution with that short name exists',
+        headers,
+      );
     }
     const created = rows[0] as { id: string; name: string };
-    await audit({ profileId: actor.profileId }, 'INSTITUTION_CREATED', {
-      type: 'institution', id: created.id,
-    }, { name: created.name, shortName });
+    await audit(
+      { profileId: actor.profileId },
+      'INSTITUTION_CREATED',
+      {
+        type: 'institution',
+        id: created.id,
+      },
+      { name: created.name, shortName },
+    );
     return json(created, 201, headers);
   });
 }

@@ -116,7 +116,9 @@ export async function generateFeedback(input: {
     'Reply with JSON only, no prose and no code fences:',
     '{"kind":"HINT|SOCRATIC_QUESTION|MISCONCEPTION_PROMPT|REQUEST_FOR_EXPLANATION|EXAMPLE|REVIEW_SUGGESTION",',
     ' "content":"..."}',
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const prompt = [
     input.activityPrompt ? `TASK:\n${input.activityPrompt}` : '',
@@ -154,16 +156,23 @@ export async function generateFeedback(input: {
     { serverManaged: input.serverManaged },
   );
 
-  const text = String(result.text ?? '').replace(/^```(?:json)?|```$/gm, '').trim();
+  const text = String(result.text ?? '')
+    .replace(/^```(?:json)?|```$/gm, '')
+    .trim();
   const KINDS: FeedbackKind[] = [
-    'HINT', 'SOCRATIC_QUESTION', 'MISCONCEPTION_PROMPT',
-    'REQUEST_FOR_EXPLANATION', 'EXAMPLE', 'REVIEW_SUGGESTION',
+    'HINT',
+    'SOCRATIC_QUESTION',
+    'MISCONCEPTION_PROMPT',
+    'REQUEST_FOR_EXPLANATION',
+    'EXAMPLE',
+    'REVIEW_SUGGESTION',
   ];
   try {
     const parsed = JSON.parse(text) as { kind?: string; content?: string };
     return {
       kind: KINDS.includes(parsed.kind as FeedbackKind) ? (parsed.kind as FeedbackKind) : 'HINT',
-      content: typeof parsed.content === 'string' && parsed.content.trim() ? parsed.content.trim() : text,
+      content:
+        typeof parsed.content === 'string' && parsed.content.trim() ? parsed.content.trim() : text,
       model: input.modelString,
       promptVersion: FEEDBACK_PROMPT_VERSION,
     };
@@ -191,7 +200,15 @@ export async function recordFeedback(
     `INSERT INTO feedback_events (response_id, kind, content, policy, model, prompt_version, shown_at)
      VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $7 THEN now() ELSE NULL END)
      RETURNING id`,
-    [responseId, feedback.kind, feedback.content, policy, feedback.model, feedback.promptVersion, shown],
+    [
+      responseId,
+      feedback.kind,
+      feedback.content,
+      policy,
+      feedback.model,
+      feedback.promptVersion,
+      shown,
+    ],
   );
   return (rows[0] as { id: string }).id;
 }

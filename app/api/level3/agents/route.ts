@@ -27,7 +27,12 @@ export function GET(req: Request): Promise<Response> {
   return withOwner(req, async (ownerId, headers) => {
     const actor = await requireAuthenticatedUser(ownerId);
     if (actor.role === 'STUDENT') {
-      return apiError(403, 'FORBIDDEN', 'agent configurations are not visible to students', headers);
+      return apiError(
+        403,
+        'FORBIDDEN',
+        'agent configurations are not visible to students',
+        headers,
+      );
     }
     const pool = await level2Pool();
     const { rows } = await pool.query(
@@ -69,20 +74,32 @@ export function POST(req: Request): Promise<Response> {
       [
         name,
         typeof body.version === 'string' && body.version.trim() ? body.version.trim() : '1.0',
-        body.agentRole ?? null, body.pedagogicalFunction ?? null, body.responseStyle ?? null,
-        body.prohibitedBehavior ?? null, body.escalationRule ?? null,
-        body.uncertaintyBehavior ?? null, body.feedbackPolicy ?? null,
+        body.agentRole ?? null,
+        body.pedagogicalFunction ?? null,
+        body.responseStyle ?? null,
+        body.prohibitedBehavior ?? null,
+        body.escalationRule ?? null,
+        body.uncertaintyBehavior ?? null,
+        body.feedbackPolicy ?? null,
         Array.isArray(body.permittedResources) ? body.permittedResources : null,
         actor.profileId,
       ],
     );
     if (!rows[0]) {
-      return apiError(409, 'VERSION_EXISTS', 'you already have an agent of that name at that version', headers);
+      return apiError(
+        409,
+        'VERSION_EXISTS',
+        'you already have an agent of that name at that version',
+        headers,
+      );
     }
     const created = rows[0] as { id: string; name: string; version: string };
-    await audit({ profileId: actor.profileId }, 'AGENT_CONFIGURATION_CHANGED',
+    await audit(
+      { profileId: actor.profileId },
+      'AGENT_CONFIGURATION_CHANGED',
       { type: 'agent_configuration', id: created.id },
-      { name: created.name, version: created.version });
+      { name: created.name, version: created.version },
+    );
     return json(created, 201, headers);
   });
 }
@@ -92,7 +109,8 @@ export function PATCH(req: Request): Promise<Response> {
   return withOwner(req, async (ownerId, headers) => {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const stageId = typeof body.stageId === 'string' ? body.stageId : '';
-    const agentId = typeof body.agentConfigurationId === 'string' ? body.agentConfigurationId : null;
+    const agentId =
+      typeof body.agentConfigurationId === 'string' ? body.agentConfigurationId : null;
     if (!stageId) return apiError(400, 'COURSE_REQUIRED', 'a course is required', headers);
     await requireCourseOwner(ownerId, stageId);
 

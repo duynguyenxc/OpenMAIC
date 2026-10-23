@@ -47,11 +47,20 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         [responseId],
       );
       const response = rows[0] as
-        | { id: string; responseText: string; activityId: string; attemptNumber: number;
-            learnerId: string; courseUuid: string;
-            stageId: string; courseTitle: string; rubricId: string | null;
-            permittedResources: string[] | null; prohibitedBehavior: string | null;
-            uncertaintyBehavior: string | null }
+        | {
+            id: string;
+            responseText: string;
+            activityId: string;
+            attemptNumber: number;
+            learnerId: string;
+            courseUuid: string;
+            stageId: string;
+            courseTitle: string;
+            rubricId: string | null;
+            permittedResources: string[] | null;
+            prohibitedBehavior: string | null;
+            uncertaintyBehavior: string | null;
+          }
         | undefined;
       if (!response) return apiError(404, 'RESPONSE_NOT_FOUND', 'no such response', headers);
 
@@ -61,14 +70,21 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       const rubricId = typeof body.rubricId === 'string' ? body.rubricId : response.rubricId;
       if (!rubricId) {
-        return apiError(409, 'NO_RUBRIC',
-          'no rubric is attached to this activity; attach one first', headers);
+        return apiError(
+          409,
+          'NO_RUBRIC',
+          'no rubric is attached to this activity; attach one first',
+          headers,
+        );
       }
       const rubric = await loadRubric(rubricId);
       if (!rubric) return apiError(404, 'RUBRIC_NOT_FOUND', 'no such rubric', headers);
 
-      const { model, modelString, serverManaged } =
-        await resolveModelFromRequest(req as never, body, 'level3-assessment');
+      const { model, modelString, serverManaged } = await resolveModelFromRequest(
+        req as never,
+        body,
+        'level3-assessment',
+      );
 
       // Level 3C: context comes through the KnowledgeProvider interface, and
       // every passage handed to the model is recorded against this response.
@@ -90,7 +106,10 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         activityPrompt: typeof body.activityPrompt === 'string' ? body.activityPrompt : null,
         courseContext: response.courseTitle,
         referenceAnswer: typeof body.referenceAnswer === 'string' ? body.referenceAnswer : null,
-        rubric, model, modelString, serverManaged,
+        rubric,
+        model,
+        modelString,
+        serverManaged,
         knowledgeContext: contextAsText(context.passages) || null,
         agentRules: {
           prohibited: response.prohibitedBehavior,
@@ -105,10 +124,16 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
           `INSERT INTO assessments (response_id, rubric_id, rubric_version, assessor_kind,
                                     model, prompt_version, raw_result)
            VALUES ($1, $2, $3, 'AI', $4, $5, $6) RETURNING id`,
-          [responseId, rubric.id, rubric.version, outcome.model, outcome.promptVersion,
-           // The retrieval request id goes into the record, so "which
-           // resources were provided to the model" is one join away.
-           { ...(outcome.raw as Record<string, unknown>), retrievalRequestId: context.requestId }],
+          [
+            responseId,
+            rubric.id,
+            rubric.version,
+            outcome.model,
+            outcome.promptVersion,
+            // The retrieval request id goes into the record, so "which
+            // resources were provided to the model" is one join away.
+            { ...(outcome.raw as Record<string, unknown>), retrievalRequestId: context.requestId },
+          ],
         );
         const assessmentId = (created[0] as { id: string }).id;
         for (const s of outcome.scores) {
@@ -123,9 +148,14 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         // Level 3D: one row per call, so usage by course, instructor, study
         // and institution is a GROUP BY rather than a second ledger.
         await recordUsage({
-          stage: 'level3-assessment', model: outcome.model, purpose: 'assessment',
-          courseId: response.courseUuid, responseId, actorId: actor.profileId,
-          studyId: null, institutionId: null,
+          stage: 'level3-assessment',
+          model: outcome.model,
+          purpose: 'assessment',
+          courseId: response.courseUuid,
+          responseId,
+          actorId: actor.profileId,
+          studyId: null,
+          institutionId: null,
         });
 
         return json(
@@ -137,8 +167,11 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
             scores: outcome.scores,
             feedbackSuggestions: outcome.feedbackSuggestions,
             parsed: outcome.scores.length > 0,
-            knowledge: { requestId: context.requestId, sources: context.sources,
-                         passages: context.passages.length },
+            knowledge: {
+              requestId: context.requestId,
+              sources: context.sources,
+              passages: context.passages.length,
+            },
             scoresNow: await scoresFor(responseId),
           },
           201,

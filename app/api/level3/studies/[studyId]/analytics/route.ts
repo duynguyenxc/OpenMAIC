@@ -19,7 +19,10 @@ export function GET(req: Request, { params }: Params): Promise<Response> {
     ]);
     return json(
       {
-        studyId, conditions, agreement, revisions,
+        studyId,
+        conditions,
+        agreement,
+        revisions,
         // Said with the numbers rather than in a footnote nobody reads.
         caveats: [
           'Means are over final scores only: a human score, or an AI score a human accepted.',

@@ -45,11 +45,14 @@ export function POST(req: Request): Promise<Response> {
     const title = typeof body.title === 'string' ? body.title.trim() : '';
     if (!title) return apiError(400, 'TITLE_REQUIRED', 'a rubric title is required', headers);
 
-    const dimensions = Array.isArray(body.dimensions) ? (body.dimensions as Array<Record<string, unknown>>) : [];
+    const dimensions = Array.isArray(body.dimensions)
+      ? (body.dimensions as Array<Record<string, unknown>>)
+      : [];
     if (dimensions.length === 0) {
       return apiError(400, 'DIMENSIONS_REQUIRED', 'a rubric needs at least one dimension', headers);
     }
-    const version = typeof body.version === 'string' && body.version.trim() ? body.version.trim() : '1.0';
+    const version =
+      typeof body.version === 'string' && body.version.trim() ? body.version.trim() : '1.0';
 
     const pool = await level2Pool();
     const client = await pool.connect();
@@ -60,26 +63,46 @@ export function POST(req: Request): Promise<Response> {
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (created_by, lower(title), version) DO NOTHING
          RETURNING id`,
-        [title, version, body.description ?? null, actor.profileId,
-         body.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'],
+        [
+          title,
+          version,
+          body.description ?? null,
+          actor.profileId,
+          body.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+        ],
       );
       if (!rows[0]) {
         await client.query('ROLLBACK');
-        return apiError(409, 'VERSION_EXISTS', 'you already have a rubric with that title at that version; raise the version', headers);
+        return apiError(
+          409,
+          'VERSION_EXISTS',
+          'you already have a rubric with that title at that version; raise the version',
+          headers,
+        );
       }
       const rubricId = (rows[0] as { id: string }).id;
 
       for (const [index, d] of dimensions.entries()) {
-        const dimensionId = typeof d.dimensionId === 'string' && d.dimensionId.trim()
-          ? d.dimensionId.trim() : `d${index + 1}`;
+        const dimensionId =
+          typeof d.dimensionId === 'string' && d.dimensionId.trim()
+            ? d.dimensionId.trim()
+            : `d${index + 1}`;
         const maxScore = Number(d.maxScore);
         await client.query(
           `INSERT INTO rubric_dimensions (rubric_id, dimension_id, name, description, max_score, ordering)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [rubricId, dimensionId, String(d.name ?? dimensionId), d.description ?? null,
-           Number.isFinite(maxScore) && maxScore > 0 ? Math.floor(maxScore) : 4, index],
+          [
+            rubricId,
+            dimensionId,
+            String(d.name ?? dimensionId),
+            d.description ?? null,
+            Number.isFinite(maxScore) && maxScore > 0 ? Math.floor(maxScore) : 4,
+            index,
+          ],
         );
-        for (const l of Array.isArray(d.levels) ? (d.levels as Array<Record<string, unknown>>) : []) {
+        for (const l of Array.isArray(d.levels)
+          ? (d.levels as Array<Record<string, unknown>>)
+          : []) {
           const score = Number(l.score);
           if (!Number.isFinite(score)) continue;
           await client.query(
@@ -90,8 +113,12 @@ export function POST(req: Request): Promise<Response> {
         }
       }
       await client.query('COMMIT');
-      await audit({ profileId: actor.profileId }, 'RUBRIC_CHANGED',
-        { type: 'rubric', id: rubricId }, { title, version, dimensions: dimensions.length });
+      await audit(
+        { profileId: actor.profileId },
+        'RUBRIC_CHANGED',
+        { type: 'rubric', id: rubricId },
+        { title, version, dimensions: dimensions.length },
+      );
       return json({ id: rubricId, title, version, dimensions: dimensions.length }, 201, headers);
     } catch (error) {
       await client.query('ROLLBACK');

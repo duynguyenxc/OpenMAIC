@@ -45,7 +45,6 @@ function isExpectedReadOnlyRefusal(error: unknown): boolean {
   return /document authorization required/i.test(String(error));
 }
 
-
 const log = createLogger('StageStore');
 
 /** Virtual scene ID used when the user navigates to a page still being generated */

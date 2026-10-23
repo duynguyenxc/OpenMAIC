@@ -73,15 +73,24 @@ export function POST(req: Request): Promise<Response> {
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, title, status`,
       [
-        title, body.description ?? null, piId, body.protocolIdentifier ?? null,
+        title,
+        body.description ?? null,
+        piId,
+        body.protocolIdentifier ?? null,
         typeof body.status === 'string' && ['DRAFT', 'ACTIVE', 'CLOSED'].includes(body.status)
-          ? body.status : 'DRAFT',
-        body.startDate ?? null, body.endDate ?? null,
+          ? body.status
+          : 'DRAFT',
+        body.startDate ?? null,
+        body.endDate ?? null,
       ],
     );
     const created = rows[0] as { id: string; title: string };
-    await audit({ profileId: actor.profileId }, 'STUDY_CREATED',
-      { type: 'study', id: created.id }, { title: created.title });
+    await audit(
+      { profileId: actor.profileId },
+      'STUDY_CREATED',
+      { type: 'study', id: created.id },
+      { title: created.title },
+    );
     return json(created, 201, headers);
   });
 }

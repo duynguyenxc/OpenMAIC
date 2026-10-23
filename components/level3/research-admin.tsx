@@ -16,13 +16,24 @@ import { Input } from '@/components/ui/input';
 import type { CourseSummary } from '@/lib/level2/use-platform';
 
 interface Institution {
-  id: string; name: string; shortName: string; country: string | null;
-  status: string; members: string; courses: string;
+  id: string;
+  name: string;
+  shortName: string;
+  country: string | null;
+  status: string;
+  members: string;
+  courses: string;
 }
 interface Study {
-  id: string; title: string; status: string; protocolIdentifier: string | null;
-  principalInvestigator: string | null; courses: string; participants: string;
-  consented: string; events: string;
+  id: string;
+  title: string;
+  status: string;
+  protocolIdentifier: string | null;
+  principalInvestigator: string | null;
+  courses: string;
+  participants: string;
+  consented: string;
+  events: string;
 }
 
 export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefined }) {
@@ -64,11 +75,15 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
     setBusy(true);
     setNote(null);
     const res = await fetch(url, {
-      method, credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}),
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
     });
-    const data = (await res.json().catch(() => ({}))) as
-      { error?: { message?: string }; message?: string };
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: { message?: string };
+      message?: string;
+    };
     setNote(res.ok ? (data.message ?? success) : (data.error?.message ?? 'That did not work.'));
     if (res.ok) load();
     setBusy(false);
@@ -80,8 +95,10 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
     setBusy(true);
     setNote(null); // the previous answer is not this request's answer (O3)
     const res = await fetch(url, {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
     const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
     setNote(res.ok ? success : (data.error?.message ?? 'That did not work.'));
@@ -94,7 +111,11 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
     <>
       {/* Reserved, not collapsed: see O4. */}
       <div className="mb-3 min-h-9">
-        {note && <p role="alert" className="bg-muted rounded-md px-3 py-2 text-sm">{note}</p>}
+        {note && (
+          <p role="alert" className="bg-muted rounded-md px-3 py-2 text-sm">
+            {note}
+          </p>
+        )}
       </div>
 
       <Card className="mb-6">
@@ -110,16 +131,32 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
             className="flex flex-wrap gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              void post('/api/level3/institutions', { name: instName, shortName: instShort },
-                `Added ${instName}.`).then((ok) => { if (ok) { setInstName(''); setInstShort(''); } });
+              void post(
+                '/api/level3/institutions',
+                { name: instName, shortName: instShort },
+                `Added ${instName}.`,
+              ).then((ok) => {
+                if (ok) {
+                  setInstName('');
+                  setInstShort('');
+                }
+              });
             }}
           >
-            <Input className="max-w-xs" placeholder="Jackson State University"
-              value={instName} onChange={(e) => setInstName(e.target.value)}
-              aria-label="Institution name" />
-            <Input className="max-w-[10rem]" placeholder="JSU"
-              value={instShort} onChange={(e) => setInstShort(e.target.value)}
-              aria-label="Short name" />
+            <Input
+              className="max-w-xs"
+              placeholder="Jackson State University"
+              value={instName}
+              onChange={(e) => setInstName(e.target.value)}
+              aria-label="Institution name"
+            />
+            <Input
+              className="max-w-[10rem]"
+              placeholder="JSU"
+              value={instShort}
+              onChange={(e) => setInstShort(e.target.value)}
+              aria-label="Short name"
+            />
             <Button type="submit" disabled={busy || !instName.trim() || !instShort.trim()}>
               {busy ? 'Working…' : 'Add institution'}
             </Button>
@@ -152,22 +189,45 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
             className="flex flex-wrap gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              void post('/api/level3/studies',
-                { title: studyTitle, principalInvestigator: studyPi || undefined,
-                  protocolIdentifier: studyProtocol || undefined },
-                `Created “${studyTitle}”.`)
-                .then((ok) => { if (ok) { setStudyTitle(''); setStudyPi(''); setStudyProtocol(''); } });
+              void post(
+                '/api/level3/studies',
+                {
+                  title: studyTitle,
+                  principalInvestigator: studyPi || undefined,
+                  protocolIdentifier: studyProtocol || undefined,
+                },
+                `Created “${studyTitle}”.`,
+              ).then((ok) => {
+                if (ok) {
+                  setStudyTitle('');
+                  setStudyPi('');
+                  setStudyProtocol('');
+                }
+              });
             }}
           >
-            <Input className="max-w-sm" placeholder="Study title"
-              value={studyTitle} onChange={(e) => setStudyTitle(e.target.value)}
-              aria-label="Study title" />
-            <Input className="max-w-xs" type="email" placeholder="principal investigator email"
-              value={studyPi} onChange={(e) => setStudyPi(e.target.value)}
-              aria-label="Principal investigator email" />
-            <Input className="max-w-[12rem]" placeholder="PROTO-2026-001"
-              value={studyProtocol} onChange={(e) => setStudyProtocol(e.target.value)}
-              aria-label="Protocol identifier" />
+            <Input
+              className="max-w-sm"
+              placeholder="Study title"
+              value={studyTitle}
+              onChange={(e) => setStudyTitle(e.target.value)}
+              aria-label="Study title"
+            />
+            <Input
+              className="max-w-xs"
+              type="email"
+              placeholder="principal investigator email"
+              value={studyPi}
+              onChange={(e) => setStudyPi(e.target.value)}
+              aria-label="Principal investigator email"
+            />
+            <Input
+              className="max-w-[12rem]"
+              placeholder="PROTO-2026-001"
+              value={studyProtocol}
+              onChange={(e) => setStudyProtocol(e.target.value)}
+              aria-label="Protocol identifier"
+            />
             <Button type="submit" disabled={busy || !studyTitle.trim()}>
               {busy ? 'Working…' : 'Create study'}
             </Button>
@@ -181,8 +241,8 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                     <strong>{s.title}</strong>
                     <span className="text-muted-foreground block text-xs">
                       {s.protocolIdentifier ?? 'no protocol id'} ·{' '}
-                      {s.principalInvestigator ?? 'no principal investigator'} · {s.courses} section(s) ·{' '}
-                      {s.consented}/{s.participants} consented · {s.events} event(s)
+                      {s.principalInvestigator ?? 'no principal investigator'} · {s.courses}{' '}
+                      section(s) · {s.consented}/{s.participants} consented · {s.events} event(s)
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -194,18 +254,26 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                       value={s.status}
                       disabled={busy}
                       onChange={(e) =>
-                        void send(`/api/level3/studies/${s.id}`, 'PATCH',
+                        void send(
+                          `/api/level3/studies/${s.id}`,
+                          'PATCH',
                           { status: e.target.value },
-                          `“${s.title}” is now ${e.target.value.toLowerCase()}.`)
+                          `“${s.title}” is now ${e.target.value.toLowerCase()}.`,
+                        )
                       }
                       aria-label={`Status of ${s.title}`}
                     >
                       {['DRAFT', 'ACTIVE', 'CLOSED'].map((v) => (
-                        <option key={v} value={v}>{v}</option>
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
                       ))}
                     </select>
-                    <Button size="sm" variant="outline"
-                      onClick={() => setAttachTo(attachTo === s.id ? null : s.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAttachTo(attachTo === s.id ? null : s.id)}
+                    >
                       {attachTo === s.id ? 'Close' : 'Manage'}
                     </Button>
                     <Button
@@ -226,8 +294,12 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                           : `“${s.title}” holds no participants and no events, so it will be ` +
                             'deleted permanently. This cannot be undone. Continue?';
                         if (!window.confirm(question)) return;
-                        void send(`/api/level3/studies/${s.id}`, 'DELETE', {},
-                          `“${s.title}” was removed.`);
+                        void send(
+                          `/api/level3/studies/${s.id}`,
+                          'DELETE',
+                          {},
+                          `“${s.title}” was removed.`,
+                        );
                       }}
                     >
                       Remove
@@ -243,15 +315,22 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                         className="flex flex-wrap gap-2"
                         onSubmit={(e) => {
                           e.preventDefault();
-                          void post(`/api/level3/studies/${s.id}/courses`,
+                          void post(
+                            `/api/level3/studies/${s.id}/courses`,
                             { stageId: attachCourse, condition: attachCondition || undefined },
-                            `Added the section under ${attachCondition || 'no condition'}.`)
-                            .then((ok) => { if (ok) { setAttachCourse(''); setAttachCondition(''); } });
+                            `Added the section under ${attachCondition || 'no condition'}.`,
+                          ).then((ok) => {
+                            if (ok) {
+                              setAttachCourse('');
+                              setAttachCondition('');
+                            }
+                          });
                         }}
                       >
                         <select
                           className="border-input bg-background max-w-xs rounded-md border px-2 py-1 text-sm"
-                          value={attachCourse} onChange={(e) => setAttachCourse(e.target.value)}
+                          value={attachCourse}
+                          onChange={(e) => setAttachCourse(e.target.value)}
                           aria-label="Course section"
                         >
                           <option value="">Choose a section…</option>
@@ -261,10 +340,16 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                             </option>
                           ))}
                         </select>
-                        <Input className="max-w-[14rem]" placeholder="CONDITION-A"
-                          value={attachCondition} onChange={(e) => setAttachCondition(e.target.value)}
-                          aria-label="Experimental condition" />
-                        <Button size="sm" type="submit" disabled={busy || !attachCourse}>Add section</Button>
+                        <Input
+                          className="max-w-[14rem]"
+                          placeholder="CONDITION-A"
+                          value={attachCondition}
+                          onChange={(e) => setAttachCondition(e.target.value)}
+                          aria-label="Experimental condition"
+                        />
+                        <Button size="sm" type="submit" disabled={busy || !attachCourse}>
+                          Add section
+                        </Button>
                       </form>
                       <p className="text-muted-foreground mt-1 text-xs">
                         Condition labels are yours to choose; nothing in the platform assumes a
@@ -273,29 +358,43 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                     </div>
 
                     <div>
-                      <p className="mb-1 text-xs font-medium">Register a participant and record consent</p>
+                      <p className="mb-1 text-xs font-medium">
+                        Register a participant and record consent
+                      </p>
                       <form
                         className="flex flex-wrap gap-2"
                         onSubmit={(e) => {
                           e.preventDefault();
-                          void post(`/api/level3/studies/${s.id}/participants`,
+                          void post(
+                            `/api/level3/studies/${s.id}/participants`,
                             { email: participantEmail, consentStatus: participantConsent },
-                            'Recorded, as a participant identifier rather than a name.')
-                            .then((ok) => { if (ok) setParticipantEmail(''); });
+                            'Recorded, as a participant identifier rather than a name.',
+                          ).then((ok) => {
+                            if (ok) setParticipantEmail('');
+                          });
                         }}
                       >
-                        <Input className="max-w-xs" type="email" placeholder="student@example.test"
-                          value={participantEmail} onChange={(e) => setParticipantEmail(e.target.value)}
-                          aria-label="Participant account email" />
+                        <Input
+                          className="max-w-xs"
+                          type="email"
+                          placeholder="student@example.test"
+                          value={participantEmail}
+                          onChange={(e) => setParticipantEmail(e.target.value)}
+                          aria-label="Participant account email"
+                        />
                         <select
                           className="border-input bg-background rounded-md border px-2 py-1 text-sm"
                           value={participantConsent}
                           onChange={(e) => setParticipantConsent(e.target.value)}
                           aria-label="Consent status"
                         >
-                          {['CONSENTED', 'PENDING', 'NOT_REQUESTED', 'DECLINED', 'WITHDRAWN'].map((c) => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
+                          {['CONSENTED', 'PENDING', 'NOT_REQUESTED', 'DECLINED', 'WITHDRAWN'].map(
+                            (c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ),
+                          )}
                         </select>
                         <Button size="sm" type="submit" disabled={busy || !participantEmail.trim()}>
                           Record
@@ -310,7 +409,9 @@ export function ResearchAdmin({ courses }: { courses: CourseSummary[] | undefine
                 )}
               </div>
             ))}
-            {studies.length === 0 && <p className="text-muted-foreground text-sm">No studies yet.</p>}
+            {studies.length === 0 && (
+              <p className="text-muted-foreground text-sm">No studies yet.</p>
+            )}
           </div>
         </CardContent>
       </Card>

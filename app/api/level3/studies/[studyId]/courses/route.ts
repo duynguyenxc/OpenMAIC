@@ -65,9 +65,12 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     );
     if (!rows[0]) return apiError(404, 'COURSE_NOT_FOUND', 'no such course', headers);
 
-    await audit({ profileId: actor.profileId }, 'STUDY_COURSE_ADDED',
+    await audit(
+      { profileId: actor.profileId },
+      'STUDY_COURSE_ADDED',
       { type: 'study', id: studyId },
-      { course: stageId, condition: body.condition ?? null, cohort: body.cohort ?? null });
+      { course: stageId, condition: body.condition ?? null, cohort: body.cohort ?? null },
+    );
     return json({ studyId, stageId, condition: body.condition ?? null }, 200, headers);
   });
 }

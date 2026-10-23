@@ -35,9 +35,17 @@ export function GET(req: Request, { params }: Params): Promise<Response> {
 
     const { rows, quality } = await exportStudy(studyId, { includeAllConsentStates: includeAll });
 
-    await audit({ profileId: actor.profileId }, 'DATA_EXPORTED',
+    await audit(
+      { profileId: actor.profileId },
+      'DATA_EXPORTED',
       { type: 'study', id: studyId },
-      { format, rows: rows.length, participants: quality.participants, includeAllConsentStates: includeAll });
+      {
+        format,
+        rows: rows.length,
+        participants: quality.participants,
+        includeAllConsentStates: includeAll,
+      },
+    );
 
     if (format === 'csv') {
       return new Response(toCsv(rows), {

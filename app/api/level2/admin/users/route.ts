@@ -39,7 +39,10 @@ export function PATCH(req: Request): Promise<Response> {
   return withOwner(req, async (ownerId, headers) => {
     const admin = await requireAdmin(ownerId);
     const body = (await req.json().catch(() => ({}))) as {
-      email?: unknown; role?: unknown; status?: unknown; institution?: unknown;
+      email?: unknown;
+      role?: unknown;
+      status?: unknown;
+      institution?: unknown;
     };
     if (typeof body.email !== 'string' || !body.email.trim()) {
       return apiError(400, 'EMAIL_REQUIRED', 'email is required', headers);
@@ -49,14 +52,24 @@ export function PATCH(req: Request): Promise<Response> {
     const values: unknown[] = [body.email.trim()];
     if (body.role !== undefined) {
       if (typeof body.role !== 'string' || !ROLES.has(body.role)) {
-        return apiError(400, 'INVALID_ROLE', 'role must be ADMIN, INSTRUCTOR, STUDENT or RESEARCHER', headers);
+        return apiError(
+          400,
+          'INVALID_ROLE',
+          'role must be ADMIN, INSTRUCTOR, STUDENT or RESEARCHER',
+          headers,
+        );
       }
       values.push(body.role);
       updates.push(`role = $${values.length}`);
     }
     if (body.status !== undefined) {
       if (typeof body.status !== 'string' || !STATUSES.has(body.status)) {
-        return apiError(400, 'INVALID_STATUS', 'status must be ACTIVE, INACTIVE or PENDING', headers);
+        return apiError(
+          400,
+          'INVALID_STATUS',
+          'status must be ACTIVE, INACTIVE or PENDING',
+          headers,
+        );
       }
       values.push(body.status);
       updates.push(`status = $${values.length}`);
@@ -75,7 +88,12 @@ export function PATCH(req: Request): Promise<Response> {
     const targetId = (target[0] as { id?: string } | undefined)?.id;
     if (!targetId) return apiError(404, 'NO_SUCH_USER', 'no account with that email', headers);
     if (targetId === admin.profileId && body.role !== undefined) {
-      return apiError(400, 'SELF_ROLE_CHANGE', 'an administrator may not change their own role', headers);
+      return apiError(
+        400,
+        'SELF_ROLE_CHANGE',
+        'an administrator may not change their own role',
+        headers,
+      );
     }
 
     const { rows } = await pool.query(

@@ -28,7 +28,13 @@ import { PlatformShell } from '@/components/level2/platform-shell';
 import { TemplateLibrary } from '@/components/level3/template-library';
 import { AssessmentPanel } from '@/components/level3/assessment-panel';
 import { KnowledgePanel } from '@/components/level3/knowledge-panel';
-import { formatWhen, useCourses, useMe, useRoleGuard, type CourseSummary } from '@/lib/level2/use-platform';
+import {
+  formatWhen,
+  useCourses,
+  useMe,
+  useRoleGuard,
+  type CourseSummary,
+} from '@/lib/level2/use-platform';
 
 type Filter = 'active' | 'published' | 'draft' | 'archived';
 type Sort = 'activity' | 'title' | 'created';
@@ -41,7 +47,10 @@ export default function InstructorDashboard() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('active');
   const [sort, setSort] = useState<Sort>('activity');
-  const [open, setOpen] = useState<{ course: CourseSummary; tab: 'students' | 'team' | 'results' } | null>(null);
+  const [open, setOpen] = useState<{
+    course: CourseSummary;
+    tab: 'students' | 'team' | 'results';
+  } | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [note, setNote] = useState<string | null>(null);
@@ -52,16 +61,21 @@ export default function InstructorDashboard() {
     const q = query.trim().toLowerCase();
     return courses
       .filter((c) =>
-        filter === 'active' ? c.status !== 'ARCHIVED'
-        : filter === 'published' ? c.status === 'PUBLISHED'
-        : filter === 'draft' ? c.status === 'DRAFT'
-        : c.status === 'ARCHIVED',
+        filter === 'active'
+          ? c.status !== 'ARCHIVED'
+          : filter === 'published'
+            ? c.status === 'PUBLISHED'
+            : filter === 'draft'
+              ? c.status === 'DRAFT'
+              : c.status === 'ARCHIVED',
       )
       .filter((c) => !q || c.title.toLowerCase().includes(q) || c.stageId.toLowerCase().includes(q))
       .sort((a, b) =>
-        sort === 'title' ? a.title.localeCompare(b.title)
-        : sort === 'created' ? (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
-        : (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? ''),
+        sort === 'title'
+          ? a.title.localeCompare(b.title)
+          : sort === 'created'
+            ? (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
+            : (b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? ''),
       );
   }, [courses, query, filter, sort]);
 
@@ -157,7 +171,9 @@ export default function InstructorDashboard() {
         </select>
       </div>
 
-      {courses === undefined && <p className="text-muted-foreground text-sm">Loading your courses…</p>}
+      {courses === undefined && (
+        <p className="text-muted-foreground text-sm">Loading your courses…</p>
+      )}
 
       {courses && shown.length === 0 && (
         <div className="rounded-lg border py-10 text-center">
@@ -183,9 +199,13 @@ export default function InstructorDashboard() {
                   className="flex gap-2"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    void change(c.stageId, { title: draftTitle }, `Renamed to “${draftTitle.trim()}”.`).then(
-                      (ok) => { if (ok) setRenaming(null); },
-                    );
+                    void change(
+                      c.stageId,
+                      { title: draftTitle },
+                      `Renamed to “${draftTitle.trim()}”.`,
+                    ).then((ok) => {
+                      if (ok) setRenaming(null);
+                    });
                   }}
                 >
                   <Input
@@ -195,7 +215,9 @@ export default function InstructorDashboard() {
                     onChange={(e) => setDraftTitle(e.target.value)}
                     aria-label="New course name"
                   />
-                  <Button size="sm" type="submit" disabled={busy}>Save</Button>
+                  <Button size="sm" type="submit" disabled={busy}>
+                    Save
+                  </Button>
                   <Button size="sm" type="button" variant="ghost" onClick={() => setRenaming(null)}>
                     Cancel
                   </Button>
@@ -206,8 +228,8 @@ export default function InstructorDashboard() {
                   {/* The id and the date are what tell six courses called
                       "Course A" apart (S3-5). */}
                   <div className="text-muted-foreground truncate text-xs">
-                    {c.stageId} · {c.studentCount} student{Number(c.studentCount) === 1 ? '' : 's'} ·
-                    last activity {formatWhen(c.lastActivityAt)}
+                    {c.stageId} · {c.studentCount} student{Number(c.studentCount) === 1 ? '' : 's'}{' '}
+                    · last activity {formatWhen(c.lastActivityAt)}
                   </div>
                 </>
               )}
@@ -216,10 +238,18 @@ export default function InstructorDashboard() {
             <Badge variant={c.status === 'PUBLISHED' ? 'default' : 'secondary'}>{c.status}</Badge>
 
             <div className="flex flex-wrap items-center gap-1">
-              <Button size="sm" variant="outline" onClick={() => setOpen({ course: c, tab: 'students' })}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpen({ course: c, tab: 'students' })}
+              >
                 Students
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setOpen({ course: c, tab: 'results' })}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpen({ course: c, tab: 'results' })}
+              >
                 Results
               </Button>
               <Button size="sm" variant="outline" asChild>
@@ -255,8 +285,20 @@ export default function InstructorDashboard() {
               >
                 {c.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
               </Button>
-              <DuplicateButton course={c} onDone={(m) => { setNote(m); reload(); }} />
-              <DeleteCourseButton course={c} onDone={(m) => { setNote(m); reload(); }} />
+              <DuplicateButton
+                course={c}
+                onDone={(m) => {
+                  setNote(m);
+                  reload();
+                }}
+              />
+              <DeleteCourseButton
+                course={c}
+                onDone={(m) => {
+                  setNote(m);
+                  reload();
+                }}
+              />
             </div>
           </div>
         ))}
@@ -272,6 +314,9 @@ export default function InstructorDashboard() {
       <KnowledgePanel courses={courses} />
 
       <CourseDialog
+        // Remounts per course and tab, so the dialog's state starts fresh
+        // without an effect reaching in to reset it.
+        key={open ? `${open.course.stageId}:${open.tab}` : 'none'}
         course={open?.course ?? null}
         tab={open?.tab ?? 'students'}
         onClose={() => setOpen(null)}
@@ -282,7 +327,13 @@ export default function InstructorDashboard() {
 }
 
 /** Disabled while in flight: two clicks used to make two courses (S1-2). */
-function DuplicateButton({ course, onDone }: { course: CourseSummary; onDone: (m: string) => void }) {
+function DuplicateButton({
+  course,
+  onDone,
+}: {
+  course: CourseSummary;
+  onDone: (m: string) => void;
+}) {
   const [busy, setBusy] = useState(false);
   return (
     <Button

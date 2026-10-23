@@ -81,7 +81,8 @@ export function DeleteCourseButton({
                   <strong>deleted permanently</strong>
                   {students > 0 && (
                     <>
-                      , along with {students === 1 ? 'its one enrolment' : `its ${students} enrolments`}
+                      , along with{' '}
+                      {students === 1 ? 'its one enrolment' : `its ${students} enrolments`}
                     </>
                   )}
                   . This cannot be undone. The lesson itself stays in your OpenMAIC workspace.
@@ -108,7 +109,10 @@ export function DeleteCourseButton({
                     ? data.archived
                       ? String(data.message)
                       : `“${String(data.title)}” was deleted.`
-                    : String((data.error as { message?: string } | undefined)?.message ?? 'That did not work.'),
+                    : String(
+                        (data.error as { message?: string } | undefined)?.message ??
+                          'That did not work.',
+                      ),
                 );
                 setBusy(false);
                 setOpen(false);

@@ -15,7 +15,12 @@ export function json(data: unknown, status = 200, headers?: Headers): Response {
   return new Response(JSON.stringify(data), { status, headers: merged });
 }
 
-export function apiError(status: number, code: string, message: string, headers?: Headers): Response {
+export function apiError(
+  status: number,
+  code: string,
+  message: string,
+  headers?: Headers,
+): Response {
   return json({ error: { code, message } }, status, headers);
 }
 
@@ -50,6 +55,8 @@ export function toCsv(rows: Record<string, unknown>[], columns: string[]): strin
     const text = value instanceof Date ? value.toISOString() : String(value);
     return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
-  return [columns.join(','), ...rows.map((row) => columns.map((c) => escape(row[c])).join(','))]
-    .join('\n');
+  return [
+    columns.join(','),
+    ...rows.map((row) => columns.map((c) => escape(row[c])).join(',')),
+  ].join('\n');
 }

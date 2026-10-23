@@ -1128,3 +1128,59 @@ was **left alone** — it predates this and is not ours to clear.
 
 Worth remembering: **a suite that crashes mid-run leaves demo clutter**, and the first person to see
 it is whoever opens the deployed site next. Check the course list after any failed run.
+
+## L19 — The repository's own quality gate, run for the first time (2026-10-23)
+
+A GitHub email: **`[duynguyenxc/OpenMAIC-JSU] Run failed: CI - main`**.
+
+The useful finding is not the failure but why nobody had seen it. **CI had never run on this
+project's code.** `gh run list --repo duynguyenxc/OpenMAIC` returns nothing — the public fork has
+never triggered a workflow. It fired this time only because the private repo was created fresh and
+pushed to `main`, which started upstream's workflows for the first time.
+
+So this was the first time upstream's own gate — Prettier, ESLint, tsc, i18n — had been applied to
+code written here since 16 October. Three of the four failed, on our code, and I had never run two
+of them: `tsc --noEmit` yes, `pnpm lint` and `pnpm check` never.
+
+### What failed, and whose it was
+
+**11 ESLint errors, all ours.** Eight `no-explicit-any` in `lib/level3/{analytics,events,knowledge}.ts`
+— `Record<string, any>` used to read query rows, which switches off type checking at exactly the
+boundary where the database meets the code. Each is now a named row interface, so a renamed column
+fails to compile instead of arriving as `undefined`.
+
+Three `set-state-in-effect`. Two were the genuine anti-pattern — resetting state when a prop
+changes — and both call sites now pass `key` to `CourseDialog`, so a different course is a
+different component and its state starts fresh without an effect reaching in. That deleted an
+effect rather than silencing it. The third is fetch-on-mount, which is the ordinary shape and not
+the synchronous cascade the rule guards; that one carries a disable with the reason written beside
+it.
+
+**74 files unformatted**, 70 of them Level-2/3. The project's code has never been Prettier-clean
+because nothing ever checked. Now formatted — a 4,800-line diff that changes no behaviour, which is
+why the suites were re-run rather than trusted.
+
+One upstream file, `lib/store/stage.ts`, was in that list because of this session's F22 edit. Its
+baseline was Prettier-clean, so the drift was mine; formatting it removes one blank line.
+
+**tsc ran out of memory on the runner** (exit 134), which in a log reads like a type error. The four
+checks run in parallel on one runner and tsc is the hungriest; the combined tree has outgrown the
+default heap. It now carries `--max-old-space-size=6144`. Recorded in `UPSTREAM_DELTA.md` as the
+one change to upstream's workflow.
+
+### The lesson worth keeping
+
+**Green suites are not a green build.** 251 API checks and 1,725 unit tests passed throughout, and
+the repository would still have rejected the branch. Before pushing: `pnpm check`, `pnpm lint`,
+`npx tsc --noEmit` — not just the suites.
+
+And: a repository whose CI has never run is not a repository with passing CI. Check
+`gh run list` before believing a fork is clean.
+
+### Verified
+
+- `pnpm check` — *All matched files use Prettier code style!*
+- `pnpm lint` — **0 errors** (22 warnings, which do not fail the gate)
+- `npx tsc --noEmit` — clean
+- **251 API checks**, 0 failures, after reformatting.
+- **1,725 unit tests** across `level2 level3 workbench i18n security store`, 0 failures.

@@ -196,3 +196,18 @@ project was asked for. What matters is the consequence for us: **never report a 
 "green" without naming the paths it covered.** For our own work the honest check is the five API
 suites plus the directories we touched, each named. A bare "the unit suite passes" is not a
 statement this repository can support.
+
+---
+
+## One change to upstream's CI workflow
+
+`.github/workflows/ci.yml` runs Prettier, ESLint, tsc and the i18n check **in parallel** on one
+runner. With this fork's added Level-2/3 sources, tsc died at Node's default heap —
+`FATAL ERROR: Ineffective mark-compacts near heap limit`, exit 134 — which in the log reads like a
+type error and is not one. `npx tsc --noEmit` is clean locally.
+
+The tsc invocation now carries `NODE_OPTIONS=--max-old-space-size=6144`. One line, in the step's
+command string. Nothing else in the workflow is touched.
+
+If upstream is ever merged, keep this line: the cause is the size of the combined tree, which only
+grows.

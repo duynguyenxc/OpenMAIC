@@ -15,12 +15,7 @@
  */
 import type { Queryable } from '@/lib/server/persistence-hooks';
 
-export type ConsentStatus =
-  | 'NOT_REQUESTED'
-  | 'PENDING'
-  | 'CONSENTED'
-  | 'DECLINED'
-  | 'WITHDRAWN';
+export type ConsentStatus = 'NOT_REQUESTED' | 'PENDING' | 'CONSENTED' | 'DECLINED' | 'WITHDRAWN';
 
 /** Consent states whose data an export may contain. */
 export const EXPORTABLE_CONSENT: ConsentStatus[] = ['CONSENTED'];

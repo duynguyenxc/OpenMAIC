@@ -56,8 +56,16 @@ export function POST(req: Request): Promise<Response> {
       const { rows } = await pool.query(
         `INSERT INTO lms_integrations (name, provider, issuer, client_id, deployment_id, status, config, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, name, provider, status`,
-        [name, provider, body.issuer ?? null, body.clientId ?? null, body.deploymentId ?? null,
-         implemented ? 'ACTIVE' : 'INACTIVE', body.config ?? null, actor.profileId],
+        [
+          name,
+          provider,
+          body.issuer ?? null,
+          body.clientId ?? null,
+          body.deploymentId ?? null,
+          implemented ? 'ACTIVE' : 'INACTIVE',
+          body.config ?? null,
+          actor.profileId,
+        ],
       );
       const created = rows[0] as Record<string, unknown>;
       return json(
@@ -80,7 +88,12 @@ export function POST(req: Request): Promise<Response> {
       const integrationId = typeof body.integrationId === 'string' ? body.integrationId : '';
       const lmsCourseId = typeof body.lmsCourseId === 'string' ? body.lmsCourseId.trim() : '';
       if (!stageId || !integrationId || !lmsCourseId) {
-        return apiError(400, 'LINK_REQUIRED', 'a course, an integration and an LMS course id are required', headers);
+        return apiError(
+          400,
+          'LINK_REQUIRED',
+          'a course, an integration and an LMS course id are required',
+          headers,
+        );
       }
       await requireCourseOwner(ownerId, stageId);
       const { rows } = await pool.query(
@@ -111,8 +124,13 @@ export function POST(req: Request): Promise<Response> {
         [responseId],
       );
       const found = ctx[0] as
-        | { stageId: string; integrationId: string | null; lmsCourseId: string | null;
-            provider: string | null; config: Record<string, unknown> | null }
+        | {
+            stageId: string;
+            integrationId: string | null;
+            lmsCourseId: string | null;
+            provider: string | null;
+            config: Record<string, unknown> | null;
+          }
         | undefined;
       if (!found) return apiError(404, 'RESPONSE_NOT_FOUND', 'no such response', headers);
       const actor = await requireCourseOwner(ownerId, found.stageId);
@@ -124,26 +142,46 @@ export function POST(req: Request): Promise<Response> {
       if (!grade) {
         // The same rule as everywhere else, and it matters most here: an
         // unreviewed AI score never leaves the platform.
-        return apiError(409, 'NO_FINAL_SCORE',
-          'this response has no final score yet — an AI score is not final until a human has reviewed it', headers);
+        return apiError(
+          409,
+          'NO_FINAL_SCORE',
+          'this response has no final score yet — an AI score is not final until a human has reviewed it',
+          headers,
+        );
       }
 
       const { provider, implemented } = providerFor(found.provider ?? 'MANUAL');
-      const result = await provider.postGrade(found.config ?? {},
-        { lmsCourseId: found.lmsCourseId ?? '' }, grade);
+      const result = await provider.postGrade(
+        found.config ?? {},
+        { lmsCourseId: found.lmsCourseId ?? '' },
+        grade,
+      );
 
       const { rows } = await pool.query(
         `INSERT INTO lms_grade_postings (integration_id, response_id, line_item, score, max_score, status, detail)
          VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, status`,
-        [found.integrationId, responseId, grade.lineItem, grade.score, grade.maxScore,
-         result.sent ? 'SENT' : 'PREPARED', result.detail],
+        [
+          found.integrationId,
+          responseId,
+          grade.lineItem,
+          grade.score,
+          grade.maxScore,
+          result.sent ? 'SENT' : 'PREPARED',
+          result.detail,
+        ],
       );
-      await audit({ profileId: actor.profileId }, 'DATA_EXPORTED',
+      await audit(
+        { profileId: actor.profileId },
+        'DATA_EXPORTED',
         { type: 'response', id: responseId },
-        { to: 'lms', provider: found.provider, sent: result.sent });
+        { to: 'lms', provider: found.provider, sent: result.sent },
+      );
 
-      return json({ ...(rows[0] as object), sent: result.sent, implemented, grade, detail: result.detail },
-        201, headers);
+      return json(
+        { ...(rows[0] as object), sent: result.sent, implemented, grade, detail: result.detail },
+        201,
+        headers,
+      );
     }
 
     return apiError(400, 'UNKNOWN_ACTION', 'action must be create, link or post-grade', headers);

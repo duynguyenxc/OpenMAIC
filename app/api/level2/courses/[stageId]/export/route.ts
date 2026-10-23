@@ -109,7 +109,16 @@ export function GET(req: Request, { params }: Params): Promise<Response> {
     }
     download.set('content-type', 'application/json');
     return new Response(
-      JSON.stringify({ courseId: stageId, courseTitle: title, exportedAt: new Date().toISOString(), events: flat }, null, 2),
+      JSON.stringify(
+        {
+          courseId: stageId,
+          courseTitle: title,
+          exportedAt: new Date().toISOString(),
+          events: flat,
+        },
+        null,
+        2,
+      ),
       { status: 200, headers: download },
     );
   });

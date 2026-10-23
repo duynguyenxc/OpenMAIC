@@ -131,7 +131,8 @@ export async function exportStudy(
       {
         check: 'events with no research participant record',
         failures: Number(c.no_participant),
-        detail: 'a learner produced events in a study course but was never registered as a participant',
+        detail:
+          'a learner produced events in a study course but was never registered as a participant',
       },
       {
         check: 'events dated in the future',
@@ -174,6 +175,8 @@ export function toCsv(rows: ExportRow[]): string {
   };
   return [
     headers.join(','),
-    ...rows.map((r) => headers.map((h) => cell((r as unknown as Record<string, unknown>)[h])).join(',')),
+    ...rows.map((r) =>
+      headers.map((h) => cell((r as unknown as Record<string, unknown>)[h])).join(','),
+    ),
   ].join('\n');
 }

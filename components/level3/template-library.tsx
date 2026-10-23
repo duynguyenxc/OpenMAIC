@@ -70,8 +70,10 @@ export function TemplateLibrary({
     setBusy(true);
     setNote(null); // the previous answer is not this request's answer (O3)
     const res = await fetch(url, {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     setNote(
@@ -79,7 +81,10 @@ export function TemplateLibrary({
         ? success(data)
         : String((data.error as { message?: string } | undefined)?.message ?? 'That did not work.'),
     );
-    if (res.ok) { load(); onChanged(); }
+    if (res.ok) {
+      load();
+      onChanged();
+    }
     setBusy(false);
   }
 
@@ -101,38 +106,55 @@ export function TemplateLibrary({
           No student work is ever copied.
         </p>
 
-        {note && <p role="alert" className="bg-muted rounded-md px-3 py-2 text-sm">{note}</p>}
+        {note && (
+          <p role="alert" className="bg-muted rounded-md px-3 py-2 text-sm">
+            {note}
+          </p>
+        )}
 
         {open && (
           <form
             className="flex flex-wrap items-center gap-2 rounded-md border p-3"
             onSubmit={(e) => {
               e.preventDefault();
-              void send('/api/level3/templates',
+              void send(
+                '/api/level3/templates',
                 { stageId: sourceCourse, version, visibility },
-                (d) => `Published “${String(d.title)}” v${String(d.version)}, visible to ${VISIBILITY_HELP[visibility]}.`,
+                (d) =>
+                  `Published “${String(d.title)}” v${String(d.version)}, visible to ${VISIBILITY_HELP[visibility]}.`,
               ).then(() => setSourceCourse(''));
             }}
           >
             <select
               className="border-input bg-background max-w-xs rounded-md border px-2 py-1 text-sm"
-              value={sourceCourse} onChange={(e) => setSourceCourse(e.target.value)}
+              value={sourceCourse}
+              onChange={(e) => setSourceCourse(e.target.value)}
               aria-label="Course to publish"
             >
               <option value="">Choose one of my courses…</option>
               {(courses ?? []).map((c) => (
-                <option key={c.stageId} value={c.stageId}>{c.title}</option>
+                <option key={c.stageId} value={c.stageId}>
+                  {c.title}
+                </option>
               ))}
             </select>
-            <Input className="max-w-[7rem]" value={version} onChange={(e) => setVersion(e.target.value)}
-              aria-label="Version" placeholder="1.0" />
+            <Input
+              className="max-w-[7rem]"
+              value={version}
+              onChange={(e) => setVersion(e.target.value)}
+              aria-label="Version"
+              placeholder="1.0"
+            />
             <select
               className="border-input bg-background rounded-md border px-2 py-1 text-sm"
-              value={visibility} onChange={(e) => setVisibility(e.target.value)}
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value)}
               aria-label="Visibility"
             >
               {Object.keys(VISIBILITY_HELP).map((v) => (
-                <option key={v} value={v}>{v}</option>
+                <option key={v} value={v}>
+                  {v}
+                </option>
               ))}
             </select>
             <Button size="sm" type="submit" disabled={busy || !sourceCourse}>
@@ -147,7 +169,10 @@ export function TemplateLibrary({
 
         <div className="divide-y rounded-md border">
           {templates?.map((t) => (
-            <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+            <div
+              key={t.id}
+              className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
+            >
               <div className="min-w-0">
                 <div className="truncate font-medium">
                   {t.title} <span className="text-muted-foreground">v{t.version}</span>
@@ -164,8 +189,12 @@ export function TemplateLibrary({
                   size="sm"
                   disabled={busy}
                   onClick={() =>
-                    void send(`/api/level3/templates/${t.id}/clone`, {},
-                      (d) => `Created “${String(d.title)}” from ${t.title} v${t.version}. It has no students and no learner data.`)
+                    void send(
+                      `/api/level3/templates/${t.id}/clone`,
+                      {},
+                      (d) =>
+                        `Created “${String(d.title)}” from ${t.title} v${t.version}. It has no students and no learner data.`,
+                    )
                   }
                 >
                   Use this module

@@ -46,8 +46,13 @@ export async function enqueue(input: {
   const { rows } = await pool.query(
     `INSERT INTO processing_jobs (kind, payload, response_id, media_id, created_by)
      VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [input.kind, input.payload, input.responseId ?? null, input.mediaId ?? null,
-     input.createdBy ?? null],
+    [
+      input.kind,
+      input.payload,
+      input.responseId ?? null,
+      input.mediaId ?? null,
+      input.createdBy ?? null,
+    ],
   );
   return (rows[0] as { id: string }).id;
 }
@@ -96,7 +101,11 @@ export async function finish(
  * that exhausts its attempts can be requeued by hand without the student
  * resubmitting.
  */
-export async function requeueIfRetryable(job: Job, error: string, maxAttempts = 3): Promise<boolean> {
+export async function requeueIfRetryable(
+  job: Job,
+  error: string,
+  maxAttempts = 3,
+): Promise<boolean> {
   if (job.attempts >= maxAttempts) {
     await finish(job.id, { ok: false, error: `${error} (gave up after ${job.attempts} attempts)` });
     return false;
@@ -114,5 +123,7 @@ export async function queueDepth(): Promise<Record<string, number>> {
   const { rows } = await pool.query(
     `SELECT status, count(*)::int n FROM processing_jobs GROUP BY status`,
   );
-  return Object.fromEntries((rows as Array<{ status: string; n: number }>).map((r) => [r.status, r.n]));
+  return Object.fromEntries(
+    (rows as Array<{ status: string; n: number }>).map((r) => [r.status, r.n]),
+  );
 }

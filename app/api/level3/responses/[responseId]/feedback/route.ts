@@ -9,15 +9,22 @@
  * A refusal is a `409` with the reason in words, not a silent empty response.
  * Every piece generated is recorded whether or not it was shown.
  */
-import { requireAuthenticatedUser, requireCourseEnrollment, requireCourseInstructor }
-  from '@/lib/level2/authorization';
+import {
+  requireAuthenticatedUser,
+  requireCourseEnrollment,
+  requireCourseInstructor,
+} from '@/lib/level2/authorization';
 import { level2Pool } from '@/lib/level2/db';
 import { loadRubric } from '@/lib/level3/assessment';
 import { contextAsText, gatherContext } from '@/lib/level3/knowledge';
 import { recordUsage } from '@/lib/level3/usage';
 import { embedText } from '@/lib/level3/embeddings';
-import { generateFeedback, policyAllows, recordFeedback, type FeedbackPolicy }
-  from '@/lib/level3/feedback';
+import {
+  generateFeedback,
+  policyAllows,
+  recordFeedback,
+  type FeedbackPolicy,
+} from '@/lib/level3/feedback';
 import { apiError, json } from '@/lib/level2/route-helpers';
 import { withRequestOwner } from '@/lib/server/identity/with-owner';
 import { resolveModelFromRequest } from '@/lib/server/resolve-model';
@@ -51,11 +58,20 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         [responseId],
       );
       const response = rows[0] as
-        | { id: string; learnerId: string; responseText: string; activityId: string;
-            attemptNumber: number; courseId: string; stageId: string;
-            rubricId: string | null; feedbackPolicy: string | null;
-            permittedResources: string[] | null; prohibitedBehavior: string | null;
-            responseStyle: string | null }
+        | {
+            id: string;
+            learnerId: string;
+            responseText: string;
+            activityId: string;
+            attemptNumber: number;
+            courseId: string;
+            stageId: string;
+            rubricId: string | null;
+            feedbackPolicy: string | null;
+            permittedResources: string[] | null;
+            prohibitedBehavior: string | null;
+            responseStyle: string | null;
+          }
         | undefined;
       if (!response) return apiError(404, 'RESPONSE_NOT_FOUND', 'no such response', headers);
 
@@ -77,7 +93,12 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         submitted: body.submitted !== false,
       });
       if (!verdict.allowed) {
-        return apiError(409, 'FEEDBACK_NOT_ALLOWED', verdict.reason ?? 'feedback is not available here', headers);
+        return apiError(
+          409,
+          'FEEDBACK_NOT_ALLOWED',
+          verdict.reason ?? 'feedback is not available here',
+          headers,
+        );
       }
       if (!response.rubricId) {
         return apiError(409, 'NO_RUBRIC', 'no rubric is attached to this activity', headers);
@@ -113,8 +134,11 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         [response.courseId, response.learnerId, response.activityId],
       );
 
-      const { model, modelString, serverManaged } =
-        await resolveModelFromRequest(req as never, body, 'level3-feedback');
+      const { model, modelString, serverManaged } = await resolveModelFromRequest(
+        req as never,
+        body,
+        'level3-feedback',
+      );
 
       const context = await gatherContext({
         stageId: response.stageId,
@@ -134,19 +158,36 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         scores: scoreRows as never,
         priorAttempts: priorAttempts as Array<{ attemptNumber: number; responseText: string }>,
         priorFeedback: (priorFeedback as Array<{ content: string }>).map((f) => f.content),
-        model, modelString, serverManaged,
+        model,
+        modelString,
+        serverManaged,
         knowledgeContext: contextAsText(context.passages) || null,
         agentRules: { prohibited: response.prohibitedBehavior, style: response.responseStyle },
       });
 
       const id = await recordFeedback(responseId, feedback, policy, actor.role === 'STUDENT');
       await recordUsage({
-        stage: 'level3-feedback', model: feedback.model, purpose: 'feedback',
-        courseId: response.courseId, responseId, actorId: actor.profileId,
+        stage: 'level3-feedback',
+        model: feedback.model,
+        purpose: 'feedback',
+        courseId: response.courseId,
+        responseId,
+        actorId: actor.profileId,
       });
-      return json({ id, ...feedback, policy,
-        knowledge: { requestId: context.requestId, sources: context.sources,
-                     passages: context.passages.length } }, 201, headers);
+      return json(
+        {
+          id,
+          ...feedback,
+          policy,
+          knowledge: {
+            requestId: context.requestId,
+            sources: context.sources,
+            passages: context.passages.length,
+          },
+        },
+        201,
+        headers,
+      );
     } catch (error) {
       const { AuthorizationError } = await import('@/lib/level2/authorization');
       if (error instanceof AuthorizationError) {

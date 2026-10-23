@@ -89,7 +89,8 @@ export default function ResearcherDashboard() {
     setBusy(true);
     if (what === 'project') {
       const r = await fetch(`/api/level3/studies/${id}/project`, {
-        method: 'POST', credentials: 'same-origin',
+        method: 'POST',
+        credentials: 'same-origin',
       });
       const d = await r.json().catch(() => ({}));
       setNote(
@@ -104,7 +105,9 @@ export default function ResearcherDashboard() {
       // sections panel happened to be open, so pressing the button on a
       // closed card appeared to do nothing.
       setOpen(id);
-      const r = await fetch(`/api/level3/studies/${id}/export?format=json`, { credentials: 'same-origin' });
+      const r = await fetch(`/api/level3/studies/${id}/export?format=json`, {
+        credentials: 'same-origin',
+      });
       const d = await r.json().catch(() => ({}));
       setQuality(r.ok ? d.quality : null);
       setNote(r.ok ? null : 'The export could not be read.');
@@ -177,10 +180,20 @@ export default function ResearcherDashboard() {
                 <Button size="sm" variant="outline" onClick={() => void openStudy(s.id)}>
                   {open === s.id ? 'Sections shown' : 'Show sections'}
                 </Button>
-                <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(s.id, 'project')}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => void run(s.id, 'project')}
+                >
                   {busy ? 'Working…' : 'Rebuild events'}
                 </Button>
-                <Button size="sm" variant="outline" disabled={busy} onClick={() => void run(s.id, 'quality')}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => void run(s.id, 'quality')}
+                >
                   Check data quality
                 </Button>
                 <Button size="sm" variant="outline" asChild>
@@ -196,32 +209,49 @@ export default function ResearcherDashboard() {
                   <table className="w-full text-sm">
                     <thead className="text-muted-foreground border-b text-left">
                       <tr className="[&>th]:px-3 [&>th]:py-2 [&>th]:whitespace-nowrap">
-                        <th>Section</th><th>Institution</th><th>Condition</th><th>Cohort</th>
-                        <th>Template</th><th>Students</th><th>Events</th><th>Snapshot</th>
+                        <th>Section</th>
+                        <th>Institution</th>
+                        <th>Condition</th>
+                        <th>Cohort</th>
+                        <th>Template</th>
+                        <th>Students</th>
+                        <th>Events</th>
+                        <th>Snapshot</th>
                       </tr>
                     </thead>
                     <tbody>
                       {courses.map((c) => (
-                        <tr key={c.stageId} className="border-b last:border-0 [&>td]:px-3 [&>td]:py-2">
+                        <tr
+                          key={c.stageId}
+                          className="border-b last:border-0 [&>td]:px-3 [&>td]:py-2"
+                        >
                           <td>
                             {c.title}
-                            <div className="text-muted-foreground font-mono text-xs">{c.stageId}</div>
+                            <div className="text-muted-foreground font-mono text-xs">
+                              {c.stageId}
+                            </div>
                           </td>
                           <td>{c.institution ?? '—'}</td>
-                          <td>{c.condition ?? <span className="text-destructive">missing</span>}</td>
+                          <td>
+                            {c.condition ?? <span className="text-destructive">missing</span>}
+                          </td>
                           <td>{c.cohort ?? '—'}</td>
                           <td className="text-xs">
                             {c.templateTitle ? `${c.templateTitle} v${c.templateVersion}` : '—'}
                           </td>
                           <td>{c.students}</td>
                           <td>{c.events}</td>
-                          <td>{c.hasSnapshot ? 'yes' : <span className="text-destructive">no</span>}</td>
+                          <td>
+                            {c.hasSnapshot ? 'yes' : <span className="text-destructive">no</span>}
+                          </td>
                         </tr>
                       ))}
                       {courses.length === 0 && (
-                        <tr><td colSpan={8} className="text-muted-foreground px-3 py-4">
-                          No sections have been added to this study yet.
-                        </td></tr>
+                        <tr>
+                          <td colSpan={8} className="text-muted-foreground px-3 py-4">
+                            No sections have been added to this study yet.
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
@@ -239,7 +269,9 @@ export default function ResearcherDashboard() {
                   <ul className="space-y-1">
                     {quality.checks.map((c) => (
                       <li key={c.check} className="flex items-start gap-2">
-                        <span className={c.failures === 0 ? 'text-emerald-600' : 'text-destructive'}>
+                        <span
+                          className={c.failures === 0 ? 'text-emerald-600' : 'text-destructive'}
+                        >
                           {c.failures === 0 ? '✓' : `✕ ${c.failures}`}
                         </span>
                         <span>

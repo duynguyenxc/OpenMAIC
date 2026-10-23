@@ -65,7 +65,9 @@ export async function loadRubric(rubricId: string): Promise<RubricForAssessment 
     `SELECT id, title, version, description FROM rubrics WHERE id = $1`,
     [rubricId],
   );
-  const rubric = rows[0] as { id: string; title: string; version: string; description: string | null } | undefined;
+  const rubric = rows[0] as
+    | { id: string; title: string; version: string; description: string | null }
+    | undefined;
   if (!rubric) return null;
 
   const { rows: dims } = await pool.query(
@@ -137,7 +139,7 @@ export async function assessResponse(input: {
   const system = [
     'You are an assessment assistant for a university course.',
     'Score the student response against the rubric, one score per dimension.',
-    'Quote the student\'s own words as evidence for each score. If the response',
+    "Quote the student's own words as evidence for each score. If the response",
     'contains no evidence for a dimension, say so and score it lowest rather',
     'than guessing. Give a confidence between 0 and 1 for each dimension.',
     'Then suggest up to three pieces of feedback a teacher could give.',
@@ -149,7 +151,9 @@ export async function assessResponse(input: {
     'Reply with JSON only, no prose and no code fences, shaped exactly as:',
     '{"scores":[{"dimensionId":"...","score":0,"evidence":"...","confidence":0.0}],',
     ' "feedbackSuggestions":["..."]}',
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const prompt = [
     `RUBRIC "${rubric.title}" v${rubric.version}`,
@@ -159,7 +163,9 @@ export async function assessResponse(input: {
     '',
     input.activityPrompt ? `TASK THE STUDENT WAS GIVEN:\n${input.activityPrompt}` : '',
     input.courseContext ? `COURSE CONTEXT:\n${input.courseContext}` : '',
-    input.referenceAnswer ? `REFERENCE ANSWER (for your judgement, not to be quoted):\n${input.referenceAnswer}` : '',
+    input.referenceAnswer
+      ? `REFERENCE ANSWER (for your judgement, not to be quoted):\n${input.referenceAnswer}`
+      : '',
     input.knowledgeContext ? `REFERENCE MATERIAL:\n${input.knowledgeContext}` : '',
     '',
     `STUDENT RESPONSE:\n${input.responseText}`,
@@ -175,7 +181,9 @@ export async function assessResponse(input: {
     { serverManaged: input.serverManaged },
   );
 
-  const text = String(result.text ?? '').replace(/^```(?:json)?|```$/gm, '').trim();
+  const text = String(result.text ?? '')
+    .replace(/^```(?:json)?|```$/gm, '')
+    .trim();
   let parsed: { scores?: unknown; feedbackSuggestions?: unknown } = {};
   try {
     parsed = JSON.parse(text) as typeof parsed;
@@ -213,7 +221,9 @@ export async function assessResponse(input: {
   return {
     scores,
     feedbackSuggestions: Array.isArray(parsed.feedbackSuggestions)
-      ? (parsed.feedbackSuggestions as unknown[]).filter((f): f is string => typeof f === 'string').slice(0, 3)
+      ? (parsed.feedbackSuggestions as unknown[])
+          .filter((f): f is string => typeof f === 'string')
+          .slice(0, 3)
       : [],
     raw: parsed,
     model: input.modelString,
@@ -244,7 +254,9 @@ export async function scoresFor(responseId: string): Promise<{
         ORDER BY created_at DESC LIMIT 1`,
       [responseId, kind],
     );
-    const a = rows[0] as { id: string; model: string | null; assessorId: string | null } | undefined;
+    const a = rows[0] as
+      | { id: string; model: string | null; assessorId: string | null }
+      | undefined;
     if (!a) return null;
     const { rows: s } = await pool.query(
       `SELECT dimension_id AS "dimensionId", score::float AS score, evidence,
@@ -262,19 +274,27 @@ export async function scoresFor(responseId: string): Promise<{
       WHERE response_id = $1 ORDER BY created_at DESC LIMIT 1`,
     [responseId],
   );
-  const review = (reviews[0] as { decision: string; reviewerId: string | null; feedback: string | null } | undefined) ?? null;
+  const review =
+    (reviews[0] as
+      | { decision: string; reviewerId: string | null; feedback: string | null }
+      | undefined) ?? null;
 
-  const final =
-    human
-      ? { source: 'HUMAN' as const, scores: human.scores }
-      : review?.decision === 'ACCEPTED' && ai
-        ? { source: 'AI_ACCEPTED' as const, scores: ai.scores }
-        : { source: 'NONE' as const, scores: [] };
+  const final = human
+    ? { source: 'HUMAN' as const, scores: human.scores }
+    : review?.decision === 'ACCEPTED' && ai
+      ? { source: 'AI_ACCEPTED' as const, scores: ai.scores }
+      : { source: 'NONE' as const, scores: [] };
 
   return {
-    ai: ai ? { assessmentId: ai.assessment.id, model: ai.assessment.model, scores: ai.scores } : null,
+    ai: ai
+      ? { assessmentId: ai.assessment.id, model: ai.assessment.model, scores: ai.scores }
+      : null,
     human: human
-      ? { assessmentId: human.assessment.id, reviewerId: human.assessment.assessorId, scores: human.scores }
+      ? {
+          assessmentId: human.assessment.id,
+          reviewerId: human.assessment.assessorId,
+          scores: human.scores,
+        }
       : null,
     review,
     final,

@@ -40,7 +40,9 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
 
     const pool = await level2Pool();
     const { rows: res } = await pool.query(
-      `SELECT id FROM knowledge_resources WHERE id = $1 AND status <> 'ARCHIVED'`, [resourceId]);
+      `SELECT id FROM knowledge_resources WHERE id = $1 AND status <> 'ARCHIVED'`,
+      [resourceId],
+    );
     if (!res[0]) return apiError(404, 'RESOURCE_NOT_FOUND', 'no such resource', headers);
 
     const { rows } = await pool.query(
@@ -53,9 +55,15 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
                        priority = EXCLUDED.priority,
                        retrieval_policy = EXCLUDED.retrieval_policy
        RETURNING id, source_name AS "sourceName", priority`,
-      [resourceId, stageId, sourceName, body.sourceRole ?? null,
-       Number.isFinite(Number(body.priority)) ? Number(body.priority) : 100,
-       body.retrievalPolicy ?? null, actor.profileId],
+      [
+        resourceId,
+        stageId,
+        sourceName,
+        body.sourceRole ?? null,
+        Number.isFinite(Number(body.priority)) ? Number(body.priority) : 100,
+        body.retrievalPolicy ?? null,
+        actor.profileId,
+      ],
     );
     return json(rows[0], 200, headers);
   });

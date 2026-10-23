@@ -19,6 +19,27 @@
  */
 import { level2Pool } from '@/lib/level2/db';
 
+/** One row of the condition breakdown; see the note in events.ts on why these
+ *  are named rather than left as `Record<string, any>`. */
+interface ConditionRow {
+  condition: string | null;
+  sections: number;
+  participants: number;
+  responses: number;
+  revisions: number;
+  feedbackShown: number;
+}
+
+/** The single row the revision comparison returns. */
+interface RevisionRow {
+  learners: number;
+  pairs: number;
+  improved: number;
+  unchanged: number;
+  worsened: number;
+  mean: number | null;
+}
+
 export interface ConditionSummary {
   condition: string | null;
   sections: number;
@@ -72,7 +93,7 @@ export async function conditionBreakdown(studyId: string): Promise<ConditionSumm
   // The mean is computed over *final* scores only — a human's, or an AI score
   // a human accepted. An unreviewed AI score is not a result.
   const out: ConditionSummary[] = [];
-  for (const row of rows as Array<Record<string, any>>) {
+  for (const row of rows as ConditionRow[]) {
     const { rows: scored } = await pool.query(
       `WITH final AS (
          SELECT lr.id AS response_id,
@@ -95,7 +116,11 @@ export async function conditionBreakdown(studyId: string): Promise<ConditionSumm
       [studyId, row.condition],
     );
     const s = scored[0] as { mean: number | null; n: number };
-    out.push({ ...(row as object), meanFinalScore: s.mean, scoredResponses: s.n } as ConditionSummary);
+    out.push({
+      ...(row as object),
+      meanFinalScore: s.mean,
+      scoredResponses: s.n,
+    } as ConditionSummary);
   }
   return out;
 }
@@ -129,7 +154,13 @@ export async function aiHumanAgreement(studyId: string): Promise<AgreementSummar
        FROM pairs`,
     [studyId],
   );
-  const r = rows[0] as { comparable: number; exact: number; higher: number; lower: number; mad: number | null };
+  const r = rows[0] as {
+    comparable: number;
+    exact: number;
+    higher: number;
+    lower: number;
+    mad: number | null;
+  };
 
   const { rows: decisions } = await pool.query(
     `SELECT ar.decision, count(*)::int n
@@ -148,8 +179,9 @@ export async function aiHumanAgreement(studyId: string): Promise<AgreementSummar
     humanHigher: r.higher,
     humanLower: r.lower,
     meanAbsoluteDifference: r.mad,
-    decisions: Object.fromEntries((decisions as Array<{ decision: string; n: number }>)
-      .map((d) => [d.decision, d.n])),
+    decisions: Object.fromEntries(
+      (decisions as Array<{ decision: string; n: number }>).map((d) => [d.decision, d.n]),
+    ),
   };
 }
 
@@ -187,7 +219,7 @@ export async function revisionEffect(studyId: string): Promise<RevisionSummary> 
        FROM pairs`,
     [studyId],
   );
-  const r = rows[0] as Record<string, any>;
+  const r = rows[0] as RevisionRow;
   return {
     learnersWhoRevised: r.learners,
     pairsCompared: r.pairs,

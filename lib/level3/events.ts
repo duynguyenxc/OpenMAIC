@@ -24,6 +24,45 @@
  */
 import { level2Pool } from '@/lib/level2/db';
 
+/**
+ * The row shapes this file reads back. They were `Record<string, any>`, which
+ * switches type checking off at exactly the boundary where the database meets
+ * the code — and which the repository's own lint gate refuses. CI had never
+ * run on this fork, so nobody had seen it.
+ */
+interface RuntimeRecordRow {
+  id: string;
+  session_id: string;
+  seq: number;
+  scene_id: string | null;
+  created_at: string;
+  data: { payload?: Record<string, unknown> | null } | null;
+  learner_id: string;
+}
+
+interface ResponseRow {
+  id: string;
+  learner_id: string;
+  activity_id: string;
+  attempt_number: number;
+  parent_attempt_id: string | null;
+  response_type: string;
+  submitted_at: string;
+  characters: number | string | null;
+}
+
+interface FeedbackRow {
+  id: string;
+  kind: string;
+  policy: string;
+  model: string | null;
+  shown_at: string | null;
+  created_at: string;
+  learner_id: string;
+  activity_id: string;
+  attempt_number: number;
+}
+
 export interface ProjectionResult {
   examined: number;
   written: number;
@@ -102,7 +141,7 @@ export async function projectCourseEvents(stageId: string): Promise<ProjectionRe
   let skipped = 0;
   const unmapped = new Set<string>();
 
-  for (const row of rows as Array<Record<string, any>>) {
+  for (const row of rows as RuntimeRecordRow[]) {
     const payload = (row.data?.payload ?? null) as Record<string, unknown> | null;
     const eventType = classify(payload);
     if (!eventType) {
@@ -173,7 +212,7 @@ export async function projectCourseAssessmentEvents(stageId: string): Promise<Pr
        FROM learner_responses WHERE course_id = $1 ORDER BY submitted_at`,
     [course.id],
   );
-  for (const r of responses as Array<Record<string, any>>) {
+  for (const r of responses as ResponseRow[]) {
     examined += 1;
     const result = await pool.query(
       `INSERT INTO research_events
@@ -182,9 +221,14 @@ export async function projectCourseAssessmentEvents(stageId: string): Promise<Pr
        VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (source_runtime_record_id) DO NOTHING`,
       [
-        course.study_id, course.id, r.learner_id, r.activity_id,
+        course.study_id,
+        course.id,
+        r.learner_id,
+        r.activity_id,
         r.attempt_number > 1 ? 'RESPONSE_REVISION' : 'RESPONSE_SUBMITTED',
-        `response:${r.id}`, r.submitted_at, r.attempt_number,
+        `response:${r.id}`,
+        r.submitted_at,
+        r.attempt_number,
         {
           responseType: r.response_type,
           attemptNumber: r.attempt_number,
@@ -203,7 +247,7 @@ export async function projectCourseAssessmentEvents(stageId: string): Promise<Pr
       WHERE lr.course_id = $1 ORDER BY fe.created_at`,
     [course.id],
   );
-  for (const f of feedback as Array<Record<string, any>>) {
+  for (const f of feedback as FeedbackRow[]) {
     examined += 1;
     const result = await pool.query(
       `INSERT INTO research_events
@@ -212,11 +256,16 @@ export async function projectCourseAssessmentEvents(stageId: string): Promise<Pr
        VALUES ($1, $2, $3, NULL, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (source_runtime_record_id) DO NOTHING`,
       [
-        course.study_id, course.id, f.learner_id, f.activity_id,
+        course.study_id,
+        course.id,
+        f.learner_id,
+        f.activity_id,
         // Generated and shown are different facts, and the instruction asks
         // for both: "Record all generated feedback", and FEEDBACK_SHOWN.
         f.shown_at ? 'FEEDBACK_SHOWN' : 'FEEDBACK_GENERATED',
-        `feedback:${f.id}`, f.created_at, f.attempt_number,
+        `feedback:${f.id}`,
+        f.created_at,
+        f.attempt_number,
         { kind: f.kind, policy: f.policy, model: f.model, shown: Boolean(f.shown_at) },
       ],
     );

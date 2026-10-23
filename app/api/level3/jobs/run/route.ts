@@ -53,21 +53,33 @@ export function POST(req: Request): Promise<Response> {
               `SELECT kind, content_type AS "contentType", bytes FROM response_media WHERE id = $1`,
               [job.mediaId],
             );
-            const media = rows[0] as { kind: MediaKind; contentType: string; bytes: Buffer } | undefined;
+            const media = rows[0] as
+              | { kind: MediaKind; contentType: string; bytes: Buffer }
+              | undefined;
             if (!media) throw new Error('the uploaded file is gone');
 
             // Handwriting needs a vision model; transcription uses OpenMAIC's
             // own ASR configuration and needs none from here.
-            let model: unknown = null, modelString = '', serverManaged = false;
+            let model: unknown = null,
+              modelString = '',
+              serverManaged = false;
             if (media.kind === 'HANDWRITTEN_IMAGE') {
-              const resolved = await resolveModelFromRequest(req as never, {}, 'level3-handwriting');
-              model = resolved.model; modelString = resolved.modelString;
+              const resolved = await resolveModelFromRequest(
+                req as never,
+                {},
+                'level3-handwriting',
+              );
+              model = resolved.model;
+              modelString = resolved.modelString;
               serverManaged = resolved.serverManaged;
             }
 
             const outcome = await processorFor(media.kind).process({
-              bytes: media.bytes, contentType: media.contentType,
-              model, modelString, serverManaged,
+              bytes: media.bytes,
+              contentType: media.contentType,
+              model,
+              modelString,
+              serverManaged,
             });
 
             // The original is never touched; only the derived text is written.
@@ -77,24 +89,38 @@ export function POST(req: Request): Promise<Response> {
                       processing_metadata = coalesce(processing_metadata, '{}'::jsonb)
                                             || $3::jsonb
                 WHERE id = $1`,
-              [job.responseId, outcome.text,
-               { ...outcome.metadata, status: outcome.ok ? 'processed' : 'failed' }],
+              [
+                job.responseId,
+                outcome.text,
+                { ...outcome.metadata, status: outcome.ok ? 'processed' : 'failed' },
+              ],
             );
 
             if (media.kind === 'HANDWRITTEN_IMAGE' && modelString) {
               await recordUsage({
-                stage: 'level3-handwriting', model: modelString, purpose: 'handwriting',
-                responseId: job.responseId, actorId: actor.profileId,
+                stage: 'level3-handwriting',
+                model: modelString,
+                purpose: 'handwriting',
+                responseId: job.responseId,
+                actorId: actor.profileId,
               });
             }
 
             if (!outcome.ok) {
-              const retried = await requeueIfRetryable(job, String(outcome.metadata.error ?? 'extraction produced nothing'));
+              const retried = await requeueIfRetryable(
+                job,
+                String(outcome.metadata.error ?? 'extraction produced nothing'),
+              );
               processed.push({ jobId: job.id, kind: job.kind, ok: false, retried });
               continue;
             }
             await finish(job.id, { ok: true, result: { characters: outcome.text.length } });
-            processed.push({ jobId: job.id, kind: job.kind, ok: true, characters: outcome.text.length });
+            processed.push({
+              jobId: job.id,
+              kind: job.kind,
+              ok: true,
+              characters: outcome.text.length,
+            });
           } else {
             // ASSESS_RESPONSE and PROJECT_STUDY are queued by other routes and
             // not yet drained here; leaving them queued is honest.

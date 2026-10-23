@@ -121,7 +121,9 @@ const PROVIDERS: Record<string, LmsProvider> = {
 
 export function providerFor(name: string): { provider: LmsProvider; implemented: boolean } {
   const provider = PROVIDERS[name];
-  return provider ? { provider, implemented: true } : { provider: ManualProvider, implemented: false };
+  return provider
+    ? { provider, implemented: true }
+    : { provider: ManualProvider, implemented: false };
 }
 
 export function availableProviders(): string[] {

@@ -18,7 +18,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlatformShell } from '@/components/level2/platform-shell';
-import { formatWhen, useCourses, useMe, useRoleGuard, type CourseSummary } from '@/lib/level2/use-platform';
+import {
+  formatWhen,
+  useCourses,
+  useMe,
+  useRoleGuard,
+  type CourseSummary,
+} from '@/lib/level2/use-platform';
 
 /** What this student has done in one course, as far as they are allowed to see. */
 interface MyWork {
@@ -49,10 +55,9 @@ function useMyWork(stageIds: string[]): Record<string, MyWork> {
     let cancelled = false;
     void Promise.all(
       key.split(',').map(async (stageId) => {
-        const res = await fetch(
-          `/api/level3/responses?stageId=${encodeURIComponent(stageId)}`,
-          { credentials: 'same-origin' },
-        ).catch(() => null);
+        const res = await fetch(`/api/level3/responses?stageId=${encodeURIComponent(stageId)}`, {
+          credentials: 'same-origin',
+        }).catch(() => null);
         if (!res?.ok) return null;
         const { responses } = (await res.json()) as {
           responses: Array<{
@@ -64,11 +69,12 @@ function useMyWork(stageIds: string[]): Record<string, MyWork> {
         };
         const summary: MyWork = {
           submissions: responses.length,
-          lastSubmittedAt: responses
-            .map((r) => r.submittedAt)
-            .filter(Boolean)
-            .sort()
-            .at(-1) ?? null,
+          lastSubmittedAt:
+            responses
+              .map((r) => r.submittedAt)
+              .filter(Boolean)
+              .sort()
+              .at(-1) ?? null,
           feedbackWaiting: responses.filter((r) => Number(r.feedbackCount) > 0).length,
           // A score only counts as marked once a person stands behind it: a
           // human assessment, or an AI one a human accepted. An unreviewed AI
@@ -84,7 +90,9 @@ function useMyWork(stageIds: string[]): Record<string, MyWork> {
       if (cancelled) return;
       setWork(Object.fromEntries(pairs.filter((p): p is [string, MyWork] => p !== null)));
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [key]);
   return work;
 }
@@ -106,7 +114,9 @@ function describeWork(work: MyWork | undefined, course: CourseSummary): string {
   const parts: string[] = [];
 
   if (work.submissions > 0) {
-    parts.push(work.submissions === 1 ? '1 answer submitted' : `${work.submissions} answers submitted`);
+    parts.push(
+      work.submissions === 1 ? '1 answer submitted' : `${work.submissions} answers submitted`,
+    );
     if (work.marked > 0) parts.push(`${work.marked} marked`);
     parts.push(`last ${formatWhen(work.lastSubmittedAt)}`);
     return parts.join(' · ');
@@ -136,7 +146,8 @@ export default function StudentDashboard() {
     <PlatformShell me={me} title="My courses">
       <h1 className="mb-1 text-xl font-semibold">My courses</h1>
       <p className="text-muted-foreground mb-6 text-sm">
-        Courses you are enrolled in. {me.externalIdentifier ? `Student ID ${me.externalIdentifier}.` : ''}
+        Courses you are enrolled in.{' '}
+        {me.externalIdentifier ? `Student ID ${me.externalIdentifier}.` : ''}
       </p>
 
       {courses === undefined && <p className="text-muted-foreground text-sm">Loading…</p>}

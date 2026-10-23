@@ -106,8 +106,6 @@ export function CourseDialog({
   const [teamEmail, setTeamEmail] = useState('');
   const [teamPermission, setTeamPermission] = useState<'EDITOR' | 'VIEWER'>('EDITOR');
 
-  useEffect(() => setActive(tab), [tab]);
-
   const stageId = course?.stageId;
 
   const load = useCallback(async () => {
@@ -122,22 +120,32 @@ export function CourseDialog({
     setResults(r.ok ? ((await r.json()).students as ResultRow[]) : []);
   }, [stageId]);
 
+  // The dialog is keyed on the course by both call sites, so a different
+  // course is a different component and its state is already fresh; this only
+  // has to fetch. The disable is for the fetch itself: `load` sets state when
+  // the request resolves, which is the ordinary fetch-on-mount shape and not
+  // the synchronous cascade the rule is guarding against.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    if (!stageId) return;
-    setNote(null);
-    setTrajectory(null);
-    void load();
+    if (stageId) void load();
   }, [stageId, load]);
 
   if (!course) return null;
 
   /** Every action reports what the server said, and nothing is enabled twice. */
-  async function act(url: string, init: RequestInit, success: (d: Record<string, unknown>) => string) {
+  async function act(
+    url: string,
+    init: RequestInit,
+    success: (d: Record<string, unknown>) => string,
+  ) {
     if (busy) return;
     setBusy(true);
     setNote(null); // the previous answer is not this request's answer (O3)
     const outcome = await send(url, init);
-    setNote({ kind: outcome.ok ? 'ok' : 'bad', text: outcome.ok ? success(outcome.data) : outcome.message });
+    setNote({
+      kind: outcome.ok ? 'ok' : 'bad',
+      text: outcome.ok ? success(outcome.data) : outcome.message,
+    });
     if (outcome.ok) {
       await load();
       onChanged();
@@ -233,7 +241,10 @@ export function CourseDialog({
               </p>
             )}
             {students?.map((s) => (
-              <div key={s.email} className="flex items-center justify-between border-b py-2 text-sm">
+              <div
+                key={s.email}
+                className="flex items-center justify-between border-b py-2 text-sm"
+              >
                 <div>
                   <div>{s.displayName ?? s.email}</div>
                   <div className="text-muted-foreground text-xs">
@@ -242,7 +253,9 @@ export function CourseDialog({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={s.status === 'ACTIVE' ? 'default' : 'secondary'}>{s.status}</Badge>
+                  <Badge variant={s.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                    {s.status}
+                  </Badge>
                   <Button
                     size="sm"
                     variant="outline"
@@ -311,7 +324,10 @@ export function CourseDialog({
             </form>
 
             {team?.map((t) => (
-              <div key={t.email} className="flex items-center justify-between border-b py-2 text-sm">
+              <div
+                key={t.email}
+                className="flex items-center justify-between border-b py-2 text-sm"
+              >
                 <div>
                   <div>{t.displayName ?? t.email}</div>
                   <div className="text-muted-foreground text-xs">{t.email}</div>
@@ -379,7 +395,10 @@ export function CourseDialog({
               </p>
             )}
             {results?.map((r) => (
-              <div key={r.email} className="flex items-center justify-between border-b py-2 text-sm">
+              <div
+                key={r.email}
+                className="flex items-center justify-between border-b py-2 text-sm"
+              >
                 <div>
                   <div>{r.email}</div>
                   <div className="text-muted-foreground text-xs">

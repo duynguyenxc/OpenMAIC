@@ -20,17 +20,33 @@ import { Input } from '@/components/ui/input';
 import { formatWhen, type CourseSummary } from '@/lib/level2/use-platform';
 
 interface Rubric {
-  id: string; title: string; version: string; status: string;
-  dimensions: string; usedInAssessments: string; createdByEmail: string;
+  id: string;
+  title: string;
+  version: string;
+  status: string;
+  dimensions: string;
+  usedInAssessments: string;
+  createdByEmail: string;
 }
 interface ResponseRow {
-  id: string; activityId: string; attemptNumber: number; parentAttemptId: string | null;
-  responseText: string; submittedAt: string; email: string | null; studentId: string | null;
-  aiAssessments: string; humanAssessments: string; reviewDecision: string | null;
+  id: string;
+  activityId: string;
+  attemptNumber: number;
+  parentAttemptId: string | null;
+  responseText: string;
+  submittedAt: string;
+  email: string | null;
+  studentId: string | null;
+  aiAssessments: string;
+  humanAssessments: string;
+  reviewDecision: string | null;
   feedbackCount: string;
 }
 interface DimensionScore {
-  dimensionId: string; score: number; evidence: string | null; confidence: number | null;
+  dimensionId: string;
+  score: number;
+  evidence: string | null;
+  confidence: number | null;
 }
 interface Scores {
   ai: { assessmentId: string; model: string | null; scores: DimensionScore[] } | null;
@@ -68,29 +84,42 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
   useEffect(loadRubrics, [loadRubrics]);
 
   const loadResponses = useCallback(async (stageId: string) => {
-    const r = await fetch(`/api/level3/responses?stageId=${stageId}`, { credentials: 'same-origin' });
+    const r = await fetch(`/api/level3/responses?stageId=${stageId}`, {
+      credentials: 'same-origin',
+    });
     setResponses(r.ok ? (await r.json()).responses : []);
   }, []);
 
-  async function act(url: string, init: RequestInit, success: (d: Record<string, unknown>) => string) {
+  async function act(
+    url: string,
+    init: RequestInit,
+    success: (d: Record<string, unknown>) => string,
+  ) {
     if (busy) return null;
     setBusy(true);
     setNote(null); // the previous answer is not this request's answer (O3)
     const res = await fetch(url, { credentials: 'same-origin', ...init });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    setNote(res.ok ? success(data)
-      : String((data.error as { message?: string } | undefined)?.message ?? 'That did not work.'));
+    setNote(
+      res.ok
+        ? success(data)
+        : String((data.error as { message?: string } | undefined)?.message ?? 'That did not work.'),
+    );
     setBusy(false);
     return res.ok ? data : null;
   }
 
   const json = (body: unknown): RequestInit => ({
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 
   async function openScores(responseId: string) {
     setOpenResponse(responseId);
-    const r = await fetch(`/api/level3/responses/${responseId}/review`, { credentials: 'same-origin' });
+    const r = await fetch(`/api/level3/responses/${responseId}/review`, {
+      credentials: 'same-origin',
+    });
     setScores(r.ok ? await r.json() : null);
   }
 
@@ -100,7 +129,11 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
         <CardTitle className="text-base">Rubrics and assessment</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {note && <p role="alert" className="bg-muted rounded-md px-3 py-2 text-sm">{note}</p>}
+        {note && (
+          <p role="alert" className="bg-muted rounded-md px-3 py-2 text-sm">
+            {note}
+          </p>
+        )}
 
         {/* ── Attach a rubric and choose when feedback happens ───────────── */}
         <div className="rounded-md border p-3">
@@ -109,33 +142,67 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
             className="flex flex-wrap items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              void act(`/api/level3/courses/${course}/rubric`,
+              void act(
+                `/api/level3/courses/${course}/rubric`,
                 json({ activityId, rubricId, feedbackPolicy: policy }),
-                () => `“${rubrics.find((r) => r.id === rubricId)?.title}” now judges ${activityId}, with feedback ${POLICY_HELP[policy]}.`);
+                () =>
+                  `“${rubrics.find((r) => r.id === rubricId)?.title}” now judges ${activityId}, with feedback ${POLICY_HELP[policy]}.`,
+              );
             }}
           >
-            <select className="border-input bg-background max-w-xs rounded-md border px-2 py-1 text-sm"
-              value={course} onChange={(e) => { setCourse(e.target.value); void loadResponses(e.target.value); }}
-              aria-label="Course">
+            <select
+              className="border-input bg-background max-w-xs rounded-md border px-2 py-1 text-sm"
+              value={course}
+              onChange={(e) => {
+                setCourse(e.target.value);
+                void loadResponses(e.target.value);
+              }}
+              aria-label="Course"
+            >
               <option value="">Choose a course…</option>
-              {(courses ?? []).map((c) => <option key={c.stageId} value={c.stageId}>{c.title}</option>)}
+              {(courses ?? []).map((c) => (
+                <option key={c.stageId} value={c.stageId}>
+                  {c.title}
+                </option>
+              ))}
             </select>
-            <Input className="max-w-[8rem]" value={activityId} onChange={(e) => setActivityId(e.target.value)}
-              aria-label="Activity id" placeholder="sc1" />
-            <select className="border-input bg-background max-w-xs rounded-md border px-2 py-1 text-sm"
-              value={rubricId} onChange={(e) => setRubricId(e.target.value)} aria-label="Rubric">
+            <Input
+              className="max-w-[8rem]"
+              value={activityId}
+              onChange={(e) => setActivityId(e.target.value)}
+              aria-label="Activity id"
+              placeholder="sc1"
+            />
+            <select
+              className="border-input bg-background max-w-xs rounded-md border px-2 py-1 text-sm"
+              value={rubricId}
+              onChange={(e) => setRubricId(e.target.value)}
+              aria-label="Rubric"
+            >
               <option value="">Choose a rubric…</option>
-              {rubrics.map((r) => <option key={r.id} value={r.id}>{r.title} v{r.version}</option>)}
+              {rubrics.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.title} v{r.version}
+                </option>
+              ))}
             </select>
-            <select className="border-input bg-background rounded-md border px-2 py-1 text-sm"
-              value={policy} onChange={(e) => setPolicy(e.target.value)} aria-label="Feedback policy">
-              {POLICIES.map((p) => <option key={p} value={p}>{p}</option>)}
+            <select
+              className="border-input bg-background rounded-md border px-2 py-1 text-sm"
+              value={policy}
+              onChange={(e) => setPolicy(e.target.value)}
+              aria-label="Feedback policy"
+            >
+              {POLICIES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
             </select>
-            <Button size="sm" type="submit" disabled={busy || !course || !rubricId}>Attach</Button>
+            <Button size="sm" type="submit" disabled={busy || !course || !rubricId}>
+              Attach
+            </Button>
           </form>
-          <p className="text-muted-foreground mt-1 text-xs">
-            Feedback: {POLICY_HELP[policy]}.
-          </p>
+          <p className="text-muted-foreground mt-1 text-xs">Feedback: {POLICY_HELP[policy]}.</p>
         </div>
 
         {/* ── The queue ─────────────────────────────────────────────────── */}
@@ -145,7 +212,9 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
               <span className="text-sm font-medium">
                 Responses{responses ? ` (${responses.length})` : ''}
               </span>
-              <Button size="sm" variant="ghost" onClick={() => void loadResponses(course)}>Refresh</Button>
+              <Button size="sm" variant="ghost" onClick={() => void loadResponses(course)}>
+                Refresh
+              </Button>
             </div>
             {responses?.length === 0 && (
               <p className="text-muted-foreground px-3 py-4 text-sm">
@@ -158,7 +227,8 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
                   <div className="min-w-0">
                     <span className="font-medium">{r.email ?? r.studentId ?? 'student'}</span>
                     <span className="text-muted-foreground">
-                      {' '}· {r.activityId} · attempt {r.attemptNumber}
+                      {' '}
+                      · {r.activityId} · attempt {r.attemptNumber}
                       {r.parentAttemptId ? ' (a revision)' : ''} · {formatWhen(r.submittedAt)}
                     </span>
                   </div>
@@ -169,13 +239,29 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
                     {Number(r.feedbackCount) > 0 && (
                       <Badge variant="outline">{r.feedbackCount} feedback</Badge>
                     )}
-                    <Button size="sm" variant="outline" disabled={busy}
-                      onClick={() => void act(`/api/level3/responses/${r.id}/assess`, json({}),
-                        (d) => `Assessed with ${String(d.model)}. ${(d.scores as unknown[]).length} dimension(s) scored.`)
-                        .then((d) => { if (d) { void loadResponses(course); void openScores(r.id); } })}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() =>
+                        void act(
+                          `/api/level3/responses/${r.id}/assess`,
+                          json({}),
+                          (d) =>
+                            `Assessed with ${String(d.model)}. ${(d.scores as unknown[]).length} dimension(s) scored.`,
+                        ).then((d) => {
+                          if (d) {
+                            void loadResponses(course);
+                            void openScores(r.id);
+                          }
+                        })
+                      }
+                    >
                       {busy ? 'Working…' : 'Assess with AI'}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => void openScores(r.id)}>Review</Button>
+                    <Button size="sm" variant="ghost" onClick={() => void openScores(r.id)}>
+                      Review
+                    </Button>
                   </div>
                 </div>
                 <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">{r.responseText}</p>
@@ -183,10 +269,16 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
                 {openResponse === r.id && scores && (
                   <div className="bg-muted/40 mt-2 space-y-2 rounded-md p-3">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <ScoreColumn title="AI" scores={scores.ai?.scores ?? []}
-                        subtitle={scores.ai?.model ?? 'not assessed yet'} />
-                      <ScoreColumn title="Human" scores={scores.human?.scores ?? []}
-                        subtitle={scores.human ? 'instructor' : 'no human score yet'} />
+                      <ScoreColumn
+                        title="AI"
+                        scores={scores.ai?.scores ?? []}
+                        subtitle={scores.ai?.model ?? 'not assessed yet'}
+                      />
+                      <ScoreColumn
+                        title="Human"
+                        scores={scores.human?.scores ?? []}
+                        subtitle={scores.human ? 'instructor' : 'no human score yet'}
+                      />
                     </div>
                     <p className="text-xs">
                       <strong>Final:</strong>{' '}
@@ -197,36 +289,87 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
                           : 'the AI score, accepted by a human'}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" disabled={busy}
-                        onClick={() => void act(`/api/level3/responses/${r.id}/review`,
-                          json({ decision: 'ACCEPTED' }), () => 'Accepted the AI assessment.')
-                          .then((d) => { if (d) { void openScores(r.id); void loadResponses(course); } })}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() =>
+                          void act(
+                            `/api/level3/responses/${r.id}/review`,
+                            json({ decision: 'ACCEPTED' }),
+                            () => 'Accepted the AI assessment.',
+                          ).then((d) => {
+                            if (d) {
+                              void openScores(r.id);
+                              void loadResponses(course);
+                            }
+                          })
+                        }
+                      >
                         Accept
                       </Button>
-                      <Button size="sm" variant="outline" disabled={busy || !scores.ai}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy || !scores.ai}
                         onClick={() => {
                           const revised = (scores.ai?.scores ?? []).map((s) => ({
                             dimensionId: s.dimensionId,
-                            score: Number(prompt(`Your score for ${s.dimensionId} (AI gave ${s.score})`, String(s.score)) ?? s.score),
+                            score: Number(
+                              prompt(
+                                `Your score for ${s.dimensionId} (AI gave ${s.score})`,
+                                String(s.score),
+                              ) ?? s.score,
+                            ),
                           }));
-                          void act(`/api/level3/responses/${r.id}/review`,
+                          void act(
+                            `/api/level3/responses/${r.id}/review`,
                             json({ decision: 'REVISED', scores: revised }),
-                            () => 'Your scores were recorded beside the AI\'s, which is unchanged.')
-                            .then((d) => { if (d) { void openScores(r.id); void loadResponses(course); } });
-                        }}>
+                            () => "Your scores were recorded beside the AI's, which is unchanged.",
+                          ).then((d) => {
+                            if (d) {
+                              void openScores(r.id);
+                              void loadResponses(course);
+                            }
+                          });
+                        }}
+                      >
                         Revise
                       </Button>
-                      <Button size="sm" variant="ghost" disabled={busy}
-                        onClick={() => void act(`/api/level3/responses/${r.id}/review`,
-                          json({ decision: 'REJECTED' }), () => 'Rejected. The AI assessment is kept for comparison.')
-                          .then((d) => { if (d) { void openScores(r.id); void loadResponses(course); } })}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() =>
+                          void act(
+                            `/api/level3/responses/${r.id}/review`,
+                            json({ decision: 'REJECTED' }),
+                            () => 'Rejected. The AI assessment is kept for comparison.',
+                          ).then((d) => {
+                            if (d) {
+                              void openScores(r.id);
+                              void loadResponses(course);
+                            }
+                          })
+                        }
+                      >
                         Reject
                       </Button>
-                      <Button size="sm" variant="ghost" disabled={busy}
-                        onClick={() => void act(`/api/level3/responses/${r.id}/feedback`,
-                          json({ requested: true }),
-                          (d) => `Feedback generated (${String(d.kind)}): ${String(d.content).slice(0, 120)}…`)
-                          .then((d) => { if (d) void loadResponses(course); })}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={() =>
+                          void act(
+                            `/api/level3/responses/${r.id}/feedback`,
+                            json({ requested: true }),
+                            (d) =>
+                              `Feedback generated (${String(d.kind)}): ${String(d.content).slice(0, 120)}…`,
+                          ).then((d) => {
+                            if (d) void loadResponses(course);
+                          })
+                        }
+                      >
                         Generate feedback
                       </Button>
                     </div>
@@ -243,8 +386,8 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
         )}
 
         <p className="text-muted-foreground text-xs">
-          An AI score never replaces a human one and a human score never replaces the AI&apos;s — both
-          are kept, which is what makes a later comparison of the two possible.
+          An AI score never replaces a human one and a human score never replaces the AI&apos;s —
+          both are kept, which is what makes a later comparison of the two possible.
         </p>
       </CardContent>
     </Card>
@@ -252,8 +395,14 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
 }
 
 function ScoreColumn({
-  title, subtitle, scores,
-}: { title: string; subtitle: string; scores: DimensionScore[] }) {
+  title,
+  subtitle,
+  scores,
+}: {
+  title: string;
+  subtitle: string;
+  scores: DimensionScore[];
+}) {
   return (
     <div>
       <p className="text-xs font-medium">

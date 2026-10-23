@@ -29,7 +29,9 @@ export function GET(req: Request, { params }: Params): Promise<Response> {
     const pool = await level2Pool();
     const { rows } = await pool.query(
       `SELECT c.openmaic_stage_id AS "stageId" FROM learner_responses lr
-         JOIN courses c ON c.id = lr.course_id WHERE lr.id = $1`, [responseId]);
+         JOIN courses c ON c.id = lr.course_id WHERE lr.id = $1`,
+      [responseId],
+    );
     const found = rows[0] as { stageId: string } | undefined;
     if (!found) return apiError(404, 'RESPONSE_NOT_FOUND', 'no such response', headers);
     await requireCourseInstructor(ownerId, found.stageId);
@@ -43,7 +45,12 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const decision = typeof body.decision === 'string' ? body.decision : '';
     if (!DECISIONS.has(decision)) {
-      return apiError(400, 'INVALID_DECISION', 'decision must be ACCEPTED, REVISED or REJECTED', headers);
+      return apiError(
+        400,
+        'INVALID_DECISION',
+        'decision must be ACCEPTED, REVISED or REJECTED',
+        headers,
+      );
     }
 
     const pool = await level2Pool();
@@ -73,7 +80,9 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
 
     const rubricId = ai?.rubricId ?? found.rubricId;
     const rubricVersion = ai?.rubricVersion ?? found.rubricVersion;
-    const scores = Array.isArray(body.scores) ? (body.scores as Array<Record<string, unknown>>) : [];
+    const scores = Array.isArray(body.scores)
+      ? (body.scores as Array<Record<string, unknown>>)
+      : [];
 
     if (decision === 'REVISED' && scores.length === 0) {
       return apiError(400, 'SCORES_REQUIRED', 'revising means giving your own scores', headers);
@@ -100,8 +109,12 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
             `INSERT INTO assessment_scores (assessment_id, dimension_id, score, evidence)
              VALUES ($1, $2, $3, $4)
              ON CONFLICT (assessment_id, dimension_id) DO UPDATE SET score = EXCLUDED.score`,
-            [humanAssessmentId, s.dimensionId, Number(s.score) || 0,
-             typeof s.evidence === 'string' ? s.evidence : null],
+            [
+              humanAssessmentId,
+              s.dimensionId,
+              Number(s.score) || 0,
+              typeof s.evidence === 'string' ? s.evidence : null,
+            ],
           );
         }
       }
@@ -110,16 +123,33 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         `INSERT INTO assessment_reviews
            (response_id, ai_assessment_id, human_assessment_id, decision, reviewer_id, feedback)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [responseId, ai?.id ?? null, humanAssessmentId, decision, actor.profileId,
-         typeof body.feedback === 'string' ? body.feedback : null],
+        [
+          responseId,
+          ai?.id ?? null,
+          humanAssessmentId,
+          decision,
+          actor.profileId,
+          typeof body.feedback === 'string' ? body.feedback : null,
+        ],
       );
       await client.query('COMMIT');
 
-      await audit({ profileId: actor.profileId }, 'ASSESSMENT_REVIEWED',
+      await audit(
+        { profileId: actor.profileId },
+        'ASSESSMENT_REVIEWED',
         { type: 'response', id: responseId },
-        { decision, hadAiAssessment: Boolean(ai), wroteHumanAssessment: Boolean(humanAssessmentId) });
+        {
+          decision,
+          hadAiAssessment: Boolean(ai),
+          wroteHumanAssessment: Boolean(humanAssessmentId),
+        },
+      );
 
-      return json({ decision, humanAssessmentId, scores: await scoresFor(responseId) }, 201, headers);
+      return json(
+        { decision, humanAssessmentId, scores: await scoresFor(responseId) },
+        201,
+        headers,
+      );
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

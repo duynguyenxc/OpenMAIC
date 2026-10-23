@@ -78,7 +78,12 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const store = await getOwnerScopedDocumentStore(principal);
       const source = await store.loadDocument(template.sourceStageId);
       if (!source) {
-        return apiError(409, 'TEMPLATE_SOURCE_MISSING', 'the course this template was published from no longer exists', headers);
+        return apiError(
+          409,
+          'TEMPLATE_SOURCE_MISSING',
+          'the course this template was published from no longer exists',
+          headers,
+        );
       }
 
       const asked =
@@ -101,8 +106,10 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         sourceStageId: template.sourceStageId,
         clonedAt: new Date().toISOString(),
         openmaicStage: {
-          interactiveMode: (source.stage as unknown as Record<string, unknown>).interactiveMode ?? null,
-          taskEngineMode: (source.stage as unknown as Record<string, unknown>).taskEngineMode ?? null,
+          interactiveMode:
+            (source.stage as unknown as Record<string, unknown>).interactiveMode ?? null,
+          taskEngineMode:
+            (source.stage as unknown as Record<string, unknown>).taskEngineMode ?? null,
           sceneCount: source.scenes.length,
         },
       };
@@ -116,9 +123,12 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         [copyId, title, template.id, template.version, snapshot, actor.profileId],
       );
 
-      await audit({ profileId: actor.profileId }, 'TEMPLATE_CLONED',
+      await audit(
+        { profileId: actor.profileId },
+        'TEMPLATE_CLONED',
         { type: 'course', id: copyId },
-        { template: template.id, templateVersion: template.version, title });
+        { template: template.id, templateVersion: template.version, title },
+      );
 
       return json(
         {

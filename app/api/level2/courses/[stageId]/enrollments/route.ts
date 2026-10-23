@@ -18,7 +18,9 @@ type Params = { params: Promise<{ stageId: string }> };
 
 async function courseIdFor(stageId: string): Promise<string | undefined> {
   const pool = await level2Pool();
-  const { rows } = await pool.query(`SELECT id FROM courses WHERE openmaic_stage_id = $1`, [stageId]);
+  const { rows } = await pool.query(`SELECT id FROM courses WHERE openmaic_stage_id = $1`, [
+    stageId,
+  ]);
   return (rows[0] as { id?: string } | undefined)?.id;
 }
 
@@ -98,7 +100,11 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     );
 
     const outcome =
-      previous === undefined ? 'enrolled' : previous === 'ACTIVE' ? 'already-enrolled' : 'reactivated';
+      previous === undefined
+        ? 'enrolled'
+        : previous === 'ACTIVE'
+          ? 'already-enrolled'
+          : 'reactivated';
     return json({ enrolled: email.trim(), status: 'ACTIVE', outcome }, 200, headers);
   });
 }
@@ -113,7 +119,8 @@ export function DELETE(req: Request, { params }: Params): Promise<Response> {
     const { stageId } = await params;
     await requireCourseOwner(ownerId, stageId);
     const email = new URL(req.url).searchParams.get('email');
-    if (!email) return apiError(400, 'EMAIL_REQUIRED', 'email query parameter is required', headers);
+    if (!email)
+      return apiError(400, 'EMAIL_REQUIRED', 'email query parameter is required', headers);
 
     const pool = await level2Pool();
     const { rows } = await pool.query(

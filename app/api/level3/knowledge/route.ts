@@ -12,7 +12,12 @@ import { apiError, json, withOwner } from '@/lib/level2/route-helpers';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const TYPES = new Set(['DOCUMENT_COLLECTION', 'VECTOR_INDEX', 'KNOWLEDGE_GRAPH', 'STRUCTURED_DATA']);
+const TYPES = new Set([
+  'DOCUMENT_COLLECTION',
+  'VECTOR_INDEX',
+  'KNOWLEDGE_GRAPH',
+  'STRUCTURED_DATA',
+]);
 const VISIBILITY = new Set(['PRIVATE', 'INSTITUTION', 'COMMUNITY', 'ADMIN_ONLY']);
 
 export function GET(req: Request): Promise<Response> {
@@ -55,8 +60,12 @@ export function POST(req: Request): Promise<Response> {
     const type = typeof body.type === 'string' ? body.type : '';
     if (!title) return apiError(400, 'TITLE_REQUIRED', 'a title is required', headers);
     if (!TYPES.has(type)) {
-      return apiError(400, 'INVALID_TYPE',
-        'type must be DOCUMENT_COLLECTION, VECTOR_INDEX, KNOWLEDGE_GRAPH or STRUCTURED_DATA', headers);
+      return apiError(
+        400,
+        'INVALID_TYPE',
+        'type must be DOCUMENT_COLLECTION, VECTOR_INDEX, KNOWLEDGE_GRAPH or STRUCTURED_DATA',
+        headers,
+      );
     }
     const visibility = typeof body.visibility === 'string' ? body.visibility : 'PRIVATE';
     if (!VISIBILITY.has(visibility)) {
@@ -72,19 +81,33 @@ export function POST(req: Request): Promise<Response> {
                $5, $6, 'PUBLISHED', $7)
        ON CONFLICT (owner_id, lower(title), version) DO NOTHING
        RETURNING id, title, type, version`,
-      [title, body.description ?? null, type, actor.profileId,
-       typeof body.version === 'string' && body.version.trim() ? body.version.trim() : '1.0',
-       visibility,
-       // A KNOWLEDGE_GRAPH resource can carry a remote service's connection
-       // here; nothing above this layer interprets it.
-       body.connection ?? null],
+      [
+        title,
+        body.description ?? null,
+        type,
+        actor.profileId,
+        typeof body.version === 'string' && body.version.trim() ? body.version.trim() : '1.0',
+        visibility,
+        // A KNOWLEDGE_GRAPH resource can carry a remote service's connection
+        // here; nothing above this layer interprets it.
+        body.connection ?? null,
+      ],
     );
     if (!rows[0]) {
-      return apiError(409, 'VERSION_EXISTS', 'you already have a resource with that title at that version', headers);
+      return apiError(
+        409,
+        'VERSION_EXISTS',
+        'you already have a resource with that title at that version',
+        headers,
+      );
     }
     const created = rows[0] as { id: string; title: string };
-    await audit({ profileId: actor.profileId }, 'AGENT_CONFIGURATION_CHANGED',
-      { type: 'knowledge_resource', id: created.id }, { title: created.title, resourceType: type });
+    await audit(
+      { profileId: actor.profileId },
+      'AGENT_CONFIGURATION_CHANGED',
+      { type: 'knowledge_resource', id: created.id },
+      { title: created.title, resourceType: type },
+    );
     return json(created, 201, headers);
   });
 }

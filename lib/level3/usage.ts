@@ -65,11 +65,17 @@ export async function recordUsage(input: {
                                 actor_id, response_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
-        input.stage, input.model, input.purpose ?? null,
-        input.inputTokens ?? null, input.outputTokens ?? null,
+        input.stage,
+        input.model,
+        input.purpose ?? null,
+        input.inputTokens ?? null,
+        input.outputTokens ?? null,
         estimateCost(input.model, input.inputTokens ?? null, input.outputTokens ?? null),
-        input.courseId ?? null, input.studyId ?? null, input.institutionId ?? null,
-        input.actorId ?? null, input.responseId ?? null,
+        input.courseId ?? null,
+        input.studyId ?? null,
+        input.institutionId ?? null,
+        input.actorId ?? null,
+        input.responseId ?? null,
       ],
     );
   } catch (error) {
@@ -82,8 +88,15 @@ export type UsageDimension = 'course' | 'instructor' | 'study' | 'institution' |
 
 /** The four aggregates the instruction names, plus by model. */
 export async function usageBy(dimension: UsageDimension): Promise<
-  Array<{ key: string; label: string; requests: number; inputTokens: number | null;
-          outputTokens: number | null; estimatedCost: number | null; knownTokens: number }>
+  Array<{
+    key: string;
+    label: string;
+    requests: number;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    estimatedCost: number | null;
+    knownTokens: number;
+  }>
 > {
   const pool = await level2Pool();
   const select: Record<UsageDimension, string> = {

@@ -23,8 +23,12 @@ export function GET(req: Request): Promise<Response> {
     await requirePlatformAdmin(ownerId);
     const by = new URL(req.url).searchParams.get('by') ?? 'model';
     if (!DIMENSIONS.has(by)) {
-      return apiError(400, 'INVALID_DIMENSION',
-        'by must be course, instructor, study, institution or model', headers);
+      return apiError(
+        400,
+        'INVALID_DIMENSION',
+        'by must be course, instructor, study, institution or model',
+        headers,
+      );
     }
     return json({ by, rows: await usageBy(by as UsageDimension) }, 200, headers);
   });

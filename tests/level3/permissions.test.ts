@@ -19,8 +19,13 @@ import { providerFor as lmsProviderFor, ManualProvider } from '@/lib/level3/lms'
  */
 
 describe('feedback policy — the rule, not the route', () => {
-  const ctx = (over: Partial<{ attemptNumber: number; requested: boolean; submitted: boolean }> = {}) => ({
-    attemptNumber: 1, requested: false, submitted: true, ...over,
+  const ctx = (
+    over: Partial<{ attemptNumber: number; requested: boolean; submitted: boolean }> = {},
+  ) => ({
+    attemptNumber: 1,
+    requested: false,
+    submitted: true,
+    ...over,
   });
 
   test('OFF refuses everything, and says why', () => {
@@ -42,7 +47,9 @@ describe('feedback policy — the rule, not the route', () => {
     // The first answer is the measurement. Feeding back into it contaminates
     // what a study is trying to observe, so attempt 1 is refused even when the
     // student asks.
-    expect(policyAllows('AFTER_FIRST_RESPONSE', ctx({ attemptNumber: 1, requested: true })).allowed).toBe(false);
+    expect(
+      policyAllows('AFTER_FIRST_RESPONSE', ctx({ attemptNumber: 1, requested: true })).allowed,
+    ).toBe(false);
     expect(policyAllows('AFTER_FIRST_RESPONSE', ctx({ attemptNumber: 2 })).allowed).toBe(true);
   });
 
@@ -52,7 +59,13 @@ describe('feedback policy — the rule, not the route', () => {
   });
 
   test('every policy is decided — none falls through', () => {
-    const policies: FeedbackPolicy[] = ['OFF', 'ON', 'AFTER_FIRST_RESPONSE', 'AFTER_SUBMISSION', 'ON_REQUEST'];
+    const policies: FeedbackPolicy[] = [
+      'OFF',
+      'ON',
+      'AFTER_FIRST_RESPONSE',
+      'AFTER_SUBMISSION',
+      'ON_REQUEST',
+    ];
     for (const p of policies) {
       const verdict = policyAllows(p, ctx());
       expect(typeof verdict.allowed).toBe('boolean');
@@ -152,8 +165,11 @@ describe('LMS boundary — honest about sending nothing', () => {
   });
 
   test('posting a grade through the manual provider never claims to have sent it', async () => {
-    const result = await ManualProvider.postGrade({}, { lmsCourseId: 'X' },
-      { responseId: 'r', lineItem: null, score: 3, maxScore: 4 });
+    const result = await ManualProvider.postGrade(
+      {},
+      { lmsCourseId: 'X' },
+      { responseId: 'r', lineItem: null, score: 3, maxScore: 4 },
+    );
     expect(result.sent).toBe(false);
     expect(JSON.stringify(result.detail)).toMatch(/nothing was transmitted/);
   });

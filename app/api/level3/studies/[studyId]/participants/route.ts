@@ -64,7 +64,9 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
 
     const pool = await level2Pool();
     const { rows: users } = await pool.query(
-      `SELECT id, role FROM user_profiles WHERE lower(email) = lower($1)`, [email]);
+      `SELECT id, role FROM user_profiles WHERE lower(email) = lower($1)`,
+      [email],
+    );
     const user = users[0] as { id: string; role: string } | undefined;
     if (!user) return apiError(404, 'NO_SUCH_USER', 'no account with that email', headers);
 
@@ -99,9 +101,12 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       const saved = rows[0] as { participantId: string; consentStatus: string };
       // The audit row records the participant id, never the email: the log is
       // read by more people than the linkage table is.
-      await audit({ profileId: actor.profileId }, 'CONSENT_CHANGED',
+      await audit(
+        { profileId: actor.profileId },
+        'CONSENT_CHANGED',
         { type: 'study', id: studyId },
-        { participantId: saved.participantId, consentStatus: saved.consentStatus });
+        { participantId: saved.participantId, consentStatus: saved.consentStatus },
+      );
       return json(saved, 200, headers);
     } catch (error) {
       await client.query('ROLLBACK');

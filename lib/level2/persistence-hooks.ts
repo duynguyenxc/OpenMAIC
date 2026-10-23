@@ -47,7 +47,8 @@ export const level2PersistenceHooks: PersistenceHooks = {
   async authorizeCreate(tx: Queryable, actor: DocumentActor): Promise<CreateDecision> {
     const profile = await profileFor(tx, actor.ownerId);
     if (!profile) return { allow: false, message: 'no active account for this owner' };
-    if (profile.status !== 'ACTIVE') return { allow: false, message: `account is ${profile.status.toLowerCase()}` };
+    if (profile.status !== 'ACTIVE')
+      return { allow: false, message: `account is ${profile.status.toLowerCase()}` };
     if (profile.role === 'STUDENT') {
       return { allow: false, message: 'students may not create courses' };
     }

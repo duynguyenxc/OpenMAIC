@@ -91,7 +91,10 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
       }
       push('status', body.status);
     }
-    for (const [field, column] of [['startDate', 'start_date'], ['endDate', 'end_date']] as const) {
+    for (const [field, column] of [
+      ['startDate', 'start_date'],
+      ['endDate', 'end_date'],
+    ] as const) {
       const value = body[field];
       if (value === null) push(column, null);
       else if (typeof value === 'string' && value.trim()) {
@@ -112,7 +115,8 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
           [email],
         );
         const candidate = rows[0] as { id?: string; role?: string } | undefined;
-        if (!candidate?.id) return apiError(404, 'NO_SUCH_USER', 'no account with that email', headers);
+        if (!candidate?.id)
+          return apiError(404, 'NO_SUCH_USER', 'no account with that email', headers);
         // The same rule the create route enforces: leading a study is read and
         // export access to everybody else's data on it.
         if (candidate.role === 'STUDENT') {
@@ -134,8 +138,12 @@ export function PATCH(req: Request, { params }: Params): Promise<Response> {
         RETURNING id, title, status, protocol_identifier AS "protocolIdentifier"`,
       values,
     );
-    await audit({ profileId: actor.profileId }, 'STUDY_UPDATED', { type: 'study', id: studyId },
-      { fields: updates.map((u) => u.split(' = ')[0]) });
+    await audit(
+      { profileId: actor.profileId },
+      'STUDY_UPDATED',
+      { type: 'study', id: studyId },
+      { fields: updates.map((u) => u.split(' = ')[0]) },
+    );
     return json(rows[0], 200, headers);
   });
 }
@@ -164,18 +172,31 @@ export function DELETE(req: Request, { params }: Params): Promise<Response> {
 
     if (holds === 0 || confirmed) {
       await pool.query(`DELETE FROM studies WHERE id = $1`, [studyId]);
-      await audit({ profileId: actor.profileId }, 'STUDY_DELETED', { type: 'study', id: studyId },
-        { title: study.title, participants: study.participants, events: study.events, confirmed });
+      await audit(
+        { profileId: actor.profileId },
+        'STUDY_DELETED',
+        { type: 'study', id: studyId },
+        { title: study.title, participants: study.participants, events: study.events, confirmed },
+      );
       return json(
-        { deleted: true, title: study.title, participants: study.participants, events: study.events },
+        {
+          deleted: true,
+          title: study.title,
+          participants: study.participants,
+          events: study.events,
+        },
         200,
         headers,
       );
     }
 
     await pool.query(`UPDATE studies SET status = 'CLOSED' WHERE id = $1`, [studyId]);
-    await audit({ profileId: actor.profileId }, 'STUDY_CLOSED', { type: 'study', id: studyId },
-      { title: study.title, participants: study.participants, events: study.events });
+    await audit(
+      { profileId: actor.profileId },
+      'STUDY_CLOSED',
+      { type: 'study', id: studyId },
+      { title: study.title, participants: study.participants, events: study.events },
+    );
     return json(
       {
         closed: true,

@@ -25,6 +25,27 @@
  */
 import { level2Pool } from '@/lib/level2/db';
 
+/** What a chunk query returns. Narrow on purpose: the point of naming these is
+ *  that a renamed column fails to compile instead of arriving as `undefined`. */
+interface ChunkRow {
+  documentId: string;
+  documentTitle: string | null;
+  chunkId: string;
+  content: string;
+  score: number | string | null;
+}
+
+/** What a graph-edge query returns. */
+interface EdgeRow {
+  documentId: string | null;
+  edgeId: string;
+  subject: string;
+  predicate: string;
+  object: string;
+  evidence: string | null;
+  score: number | string | null;
+}
+
 export type ResourceType =
   | 'DOCUMENT_COLLECTION'
   | 'VECTOR_INDEX'
@@ -100,7 +121,7 @@ export const DocumentRetriever: KnowledgeProvider = {
         LIMIT $3`,
       [source.resourceId, request.query, request.limit],
     );
-    return (rows as Array<Record<string, any>>).map((r) => ({
+    return (rows as ChunkRow[]).map((r) => ({
       resourceId: source.resourceId,
       resourceTitle: source.resourceTitle,
       sourceName: source.sourceName,
@@ -144,7 +165,7 @@ export function makeVectorRetriever(
           LIMIT $3`,
         [source.resourceId, JSON.stringify(vector), request.limit],
       );
-      return (rows as Array<Record<string, any>>).map((r) => ({
+      return (rows as ChunkRow[]).map((r) => ({
         resourceId: source.resourceId,
         resourceTitle: source.resourceTitle,
         sourceName: source.sourceName,
@@ -189,7 +210,7 @@ export const KnowledgeGraphRetriever: KnowledgeProvider = {
         LIMIT $3`,
       [source.resourceId, request.query, request.limit],
     );
-    return (rows as Array<Record<string, any>>).map((r) => ({
+    return (rows as EdgeRow[]).map((r) => ({
       resourceId: source.resourceId,
       resourceTitle: source.resourceTitle,
       sourceName: source.sourceName,
@@ -321,9 +342,21 @@ export async function gatherContext(input: {
            (request_id, purpose, provider, resource_id, source_name, document_id, chunk_id,
             edge_id, score, query, course_id, learner_id, response_id)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-        [requestId, input.purpose, p.provider, p.resourceId, p.sourceName, p.documentId,
-         p.chunkId, p.edgeId, p.score, input.query, input.courseId ?? null,
-         input.learnerId ?? null, input.responseId ?? null],
+        [
+          requestId,
+          input.purpose,
+          p.provider,
+          p.resourceId,
+          p.sourceName,
+          p.documentId,
+          p.chunkId,
+          p.edgeId,
+          p.score,
+          input.query,
+          input.courseId ?? null,
+          input.learnerId ?? null,
+          input.responseId ?? null,
+        ],
       );
     }
   }

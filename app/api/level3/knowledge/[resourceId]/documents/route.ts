@@ -22,12 +22,17 @@ type Params = { params: Promise<{ resourceId: string }> };
 /** Paragraph-ish chunks, bounded. Good enough for a prototype corpus, and
  *  honest about being simple rather than pretending to be a pipeline. */
 function chunk(text: string, max = 1200): string[] {
-  const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
   const out: string[] = [];
   let current = '';
   for (const p of paragraphs) {
-    if ((current + '\n\n' + p).length > max && current) { out.push(current); current = p; }
-    else current = current ? `${current}\n\n${p}` : p;
+    if ((current + '\n\n' + p).length > max && current) {
+      out.push(current);
+      current = p;
+    } else current = current ? `${current}\n\n${p}` : p;
   }
   if (current) out.push(current);
   return out.length ? out : [text.slice(0, max)];
@@ -40,7 +45,9 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
     const pool = await level2Pool();
 
     const { rows: resRows } = await pool.query(
-      `SELECT id, type, owner_id AS "ownerId" FROM knowledge_resources WHERE id = $1`, [resourceId]);
+      `SELECT id, type, owner_id AS "ownerId" FROM knowledge_resources WHERE id = $1`,
+      [resourceId],
+    );
     const resource = resRows[0] as { id: string; type: string; ownerId: string } | undefined;
     if (!resource) return apiError(404, 'RESOURCE_NOT_FOUND', 'no such resource', headers);
     if (resource.ownerId !== actor.profileId && actor.role !== 'ADMIN') {
@@ -57,12 +64,22 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       }
       let written = 0;
       for (const e of edges) {
-        if (typeof e.subject !== 'string' || typeof e.predicate !== 'string' || typeof e.object !== 'string') continue;
+        if (
+          typeof e.subject !== 'string' ||
+          typeof e.predicate !== 'string' ||
+          typeof e.object !== 'string'
+        )
+          continue;
         await pool.query(
           `INSERT INTO knowledge_graph_edges (resource_id, subject, predicate, object, evidence)
            VALUES ($1, $2, $3, $4, $5)`,
-          [resourceId, e.subject, e.predicate, e.object,
-           typeof e.evidence === 'string' ? e.evidence : null],
+          [
+            resourceId,
+            e.subject,
+            e.predicate,
+            e.object,
+            typeof e.evidence === 'string' ? e.evidence : null,
+          ],
         );
         written += 1;
       }
@@ -97,12 +114,20 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
 
     return json(
       {
-        documentId, title, chunks: pieces.length, embedded,
+        documentId,
+        title,
+        chunks: pieces.length,
+        embedded,
         // Said plainly rather than left to be discovered: a VECTOR_INDEX whose
         // embeddings failed is searchable by keyword and not by meaning.
-        searchable: resource.type === 'VECTOR_INDEX'
-          ? (embedded === pieces.length ? 'by meaning' : embedded ? 'partly by meaning' : 'not by meaning — embedding failed')
-          : 'by keyword',
+        searchable:
+          resource.type === 'VECTOR_INDEX'
+            ? embedded === pieces.length
+              ? 'by meaning'
+              : embedded
+                ? 'partly by meaning'
+                : 'not by meaning — embedding failed'
+            : 'by keyword',
       },
       201,
       headers,

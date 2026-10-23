@@ -21,7 +21,10 @@ const HANDLING = new Set(['RETAIN_DEIDENTIFIED', 'RETAIN_IDENTIFIED', 'PURGE_ON_
 const STRATEGY = new Set(['PARTICIPANT_ID_ONLY', 'HASH_IDENTIFIERS', 'FULL_ANONYMISE']);
 
 /** What the current policy would cover, if anybody acted on it. */
-async function coverage(policy: { instructional_days: number | null; research_days: number | null }) {
+async function coverage(policy: {
+  instructional_days: number | null;
+  research_days: number | null;
+}) {
   const pool = await level2Pool();
   const { rows } = await pool.query(
     `SELECT
@@ -74,17 +77,32 @@ export function PATCH(req: Request): Promise<Response> {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
     const days = (v: unknown) =>
-      v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) && Number(v) > 0 ? Math.floor(Number(v)) : undefined;
+      v === null || v === undefined || v === ''
+        ? null
+        : Number.isFinite(Number(v)) && Number(v) > 0
+          ? Math.floor(Number(v))
+          : undefined;
 
     const instructional = days(body.instructionalDays);
     const research = days(body.researchDays);
     if (instructional === undefined || research === undefined) {
-      return apiError(400, 'INVALID_PERIOD', 'a retention period must be a positive number of days, or null to keep indefinitely', headers);
+      return apiError(
+        400,
+        'INVALID_PERIOD',
+        'a retention period must be a positive number of days, or null to keep indefinitely',
+        headers,
+      );
     }
-    if (body.deletedAccountHandling !== undefined && !HANDLING.has(String(body.deletedAccountHandling))) {
+    if (
+      body.deletedAccountHandling !== undefined &&
+      !HANDLING.has(String(body.deletedAccountHandling))
+    ) {
       return apiError(400, 'INVALID_HANDLING', 'unknown deleted-account handling', headers);
     }
-    if (body.deidentificationStrategy !== undefined && !STRATEGY.has(String(body.deidentificationStrategy))) {
+    if (
+      body.deidentificationStrategy !== undefined &&
+      !STRATEGY.has(String(body.deidentificationStrategy))
+    ) {
       return apiError(400, 'INVALID_STRATEGY', 'unknown de-identification strategy', headers);
     }
 
@@ -102,12 +120,22 @@ export function PATCH(req: Request): Promise<Response> {
         RETURNING instructional_days AS "instructionalDays", research_days AS "researchDays",
                   deleted_account_handling AS "deletedAccountHandling",
                   deidentification_strategy AS "deidentificationStrategy"`,
-      [instructional, research, body.deletedAccountHandling ?? null,
-       body.deidentificationStrategy ?? null, body.notes ?? null, actor.profileId],
+      [
+        instructional,
+        research,
+        body.deletedAccountHandling ?? null,
+        body.deidentificationStrategy ?? null,
+        body.notes ?? null,
+        actor.profileId,
+      ],
     );
     const policy = rows[0] as Record<string, unknown>;
-    await audit({ profileId: actor.profileId }, 'ROLE_CHANGED',
-      { type: 'retention_policy', id: 'singleton' }, policy);
+    await audit(
+      { profileId: actor.profileId },
+      'ROLE_CHANGED',
+      { type: 'retention_policy', id: 'singleton' },
+      policy,
+    );
 
     return json(
       {

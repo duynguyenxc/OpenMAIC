@@ -47,13 +47,25 @@ export default function LoginPage() {
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" autoComplete="username" required
-                value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="username"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" autoComplete="current-password" required
-                value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={busy}>
@@ -61,8 +73,8 @@ export default function LoginPage() {
             </Button>
             <p className="text-muted-foreground text-xs">
               Accounts are created by an administrator. A new account stays pending until it is
-              approved. If you have forgotten your password, ask your administrator to set a new
-              one — there is no self-service reset, by design.
+              approved. If you have forgotten your password, ask your administrator to set a new one
+              — there is no self-service reset, by design.
             </p>
           </form>
           {/* Somebody who lands here by accident, or has no account, had no way
