@@ -1066,3 +1066,65 @@ single one, because a single connection succeeds while the pool is still too ful
 - The whole-repo unit suite still fails as L15 measured. Upstream's, unchanged, not ours.
 - **Still nothing is deployed.** Everything from L11 onward is local, now across seven commits on
   `feature/level3-research-platform`, and the only remote is Tsinghua's upstream.
+
+## L18 — Pushed, deployed, and checked on the live site (2026-10-23)
+
+### Where the code now lives
+
+- **https://github.com/duynguyenxc/OpenMAIC** — the RA's public fork, `main` and
+  `feature/level3-research-platform` both at `5fd877f9`. This is the one to send the professor.
+- **https://github.com/duynguyenxc/OpenMAIC-JSU** — a private copy made during this session, same
+  commit plus an `upstream-main-snapshot` branch at `35e96692`. Kept as a backup; harmless.
+
+`origin` still points at `THU-MAIC/OpenMAIC` and a push to it is refused, which is the correct
+outcome and was confirmed by accident: the first `git push origin` came back
+`Permission to THU-MAIC/OpenMAIC.git denied`. **The RA's fork is the remote `fork`, not `origin`.**
+Next session: push to `fork` (public) and `jsu` (private), never `origin`.
+
+### The credentials question, decided by the RA
+
+`docs/HOW_TO_TEST.md` is tracked and carries the live passwords for all six Level-2 accounts,
+including the administrator, and the fork is public — so they are readable by anyone who finds the
+repository, and have been since a previous session pushed them.
+
+This was raised before pushing. GitHub refuses to make a fork of a public repository private
+(`422 Public forks can't be made private`), and the `gh` token lacks `delete_repo`, so neither
+remedy was available here. **The RA decided to leave it: the repository is only known to them and
+the professor, and rotating the passwords is deferred.** That is their call and it is recorded
+here, not re-argued. The accounts hold synthetic data only. If it is ever revisited, rotating is
+the real fix — deleting the file now would not retract what has already been public.
+
+### The deployment
+
+`https://openmaic-level2.vercel.app` → deployment `openmaic-level2-1b3okr0ne`, built in 8 minutes,
+Ready. The alias was confirmed to serve that build rather than the previous one.
+
+### Checked on the live site, not just locally
+
+This mattered because F3 and F8 are client-side, so local green says little about production.
+
+| Checked | Result |
+|---|---|
+| Login page's way out (F21) | *Back to OpenMAIC* present |
+| Sign-in, first attempt | works, all three roles |
+| Student card (F28) | *opened 3 times · last 16 Oct, 10:13 pm · no answers submitted yet* |
+| Role guard (F3) | `/platform/admin` as a student → `/platform/student` |
+| Classroom exit (F8) | arrow reads *Back to my courses*, lands on `/platform/student` |
+| Delete dialog (F4) | *deleted permanently* for an untouched course; *archived* for one worked in |
+| Student counts (F15) | row `2 students` vs tab `Students (2, 1 inactive)` — agreeing |
+
+Both delete dialogs were cancelled; nothing was removed.
+
+### Fixtures a crashed run left behind
+
+The live student dashboard opened on **`Course A (test 011229)`** — a suite fixture. The run that
+died on `EMAXCONNSESSION` never reached its own cleanup, leaving two fixture courses with synthetic
+sessions and two `Untitled course` drafts (the course row is created before the title is set, so a
+crash in that window leaves one).
+
+All four removed, by the same rule the suite's own cleanup uses. The platform is back to its seven
+published courses and no drafts. An older `Untitled course` from 16 October holding three sessions
+was **left alone** — it predates this and is not ours to clear.
+
+Worth remembering: **a suite that crashes mid-run leaves demo clutter**, and the first person to see
+it is whoever opens the deployed site next. Check the course list after any failed run.
