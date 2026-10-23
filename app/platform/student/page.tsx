@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlatformShell } from '@/components/level2/platform-shell';
-import { formatWhen, useCourses, useMe, useRoleGuard } from '@/lib/level2/use-platform';
+import { formatWhen, useCourses, useMe, useRoleGuard, type CourseSummary } from '@/lib/level2/use-platform';
 
 /** What this student has done in one course, as far as they are allowed to see. */
 interface MyWork {
@@ -89,19 +89,33 @@ function useMyWork(stageIds: string[]): Record<string, MyWork> {
   return work;
 }
 
-/** One sentence about this student's standing, or an honest absence of one. */
-function describeWork(work: MyWork | undefined): string {
+/**
+ * One sentence about this student's standing, in their own terms.
+ *
+ * Two different things count, and the card used to report only the second: the
+ * classroom, which the instructor's Results tab has always shown, and
+ * submitted answers, which Level 3 assesses. A student with three sessions and
+ * no submission was told "nothing submitted yet" while the next screen over
+ * credited them with the work (O22/O23). Both are now here, and the words are
+ * a student's — "opened", "answers" — not `runtime_sessions` and
+ * `learner_responses`.
+ */
+function describeWork(work: MyWork | undefined, course: CourseSummary): string {
   if (!work) return 'loading…';
-  // Not "nothing yet": this counts `learner_responses` only, and a student who
-  // has spent an hour in the classroom has runtime records but no submitted
-  // answer. The instructor's Results tab shows that activity, so a card
-  // claiming the student had done nothing contradicted it (O22).
-  if (work.submissions === 0) return 'no answers submitted yet';
-  const parts = [
-    work.submissions === 1 ? '1 submission' : `${work.submissions} submissions`,
-  ];
-  if (work.marked > 0) parts.push(`${work.marked} marked`);
-  if (work.lastSubmittedAt) parts.push(`last ${formatWhen(work.lastSubmittedAt)}`);
+  const visits = Number(course.mySessions ?? 0);
+  const parts: string[] = [];
+
+  if (work.submissions > 0) {
+    parts.push(work.submissions === 1 ? '1 answer submitted' : `${work.submissions} answers submitted`);
+    if (work.marked > 0) parts.push(`${work.marked} marked`);
+    parts.push(`last ${formatWhen(work.lastSubmittedAt)}`);
+    return parts.join(' · ');
+  }
+
+  if (visits === 0) return 'you have not opened this course yet';
+  parts.push(visits === 1 ? 'opened once' : `opened ${visits} times`);
+  if (course.myLastActivityAt) parts.push(`last ${formatWhen(course.myLastActivityAt)}`);
+  parts.push('no answers submitted yet');
   return parts.join(' · ');
 }
 
@@ -157,7 +171,7 @@ export default function StudentDashboard() {
                 </div>
                 <div className="flex gap-2">
                   <dt>Your work:</dt>
-                  <dd className="text-foreground">{describeWork(work[course.stageId])}</dd>
+                  <dd className="text-foreground">{describeWork(work[course.stageId], course)}</dd>
                 </div>
               </dl>
               {work[course.stageId]?.feedbackWaiting ? (

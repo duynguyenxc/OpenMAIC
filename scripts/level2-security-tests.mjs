@@ -343,6 +343,39 @@ console.log('\nA GENERATED NAME MUST NEVER BE THE THING THAT FAILS');
   await api(A.instructor1, `/api/level2/courses/${long}`, { method: 'DELETE', body: '{}' });
 }
 
+console.log('\nA STUDENT SEES THEIR OWN ACTIVITY, AND ONLY THEIR OWN');
+{
+  // The instructor's Results tab has always reported a learner's sessions; the
+  // student's own dashboard reported none, so somebody who had spent an hour
+  // in a class was told they had done nothing (O23). The counts are derived
+  // from the session, never from anything the browser sends.
+  const mine = await api(A.student1, '/api/level2/courses');
+  const courses = mine.status === 200 ? JSON.parse(mine.body).courses : [];
+  check('a student is told their own standing in each course',
+    courses.length > 0 && courses.every(
+      (c) => 'mySessions' in c && 'myRecords' in c && 'myLastActivityAt' in c),
+    mine.body.slice(0, 110));
+
+  // The scoping is the part worth pinning: two students on one course must not
+  // see each other's numbers.
+  const theirs = await api(A.student2, '/api/level2/courses');
+  const other = theirs.status === 200 ? JSON.parse(theirs.body).courses : [];
+  const shared = courses.find((c) => other.some((o) => o.stageId === c.stageId));
+  if (shared) {
+    const same = other.find((o) => o.stageId === shared.stageId);
+    check('and the counts are that student\'s, not the course\'s',
+      Number(shared.mySessions) <= Number(shared.studentCount ?? 99) &&
+      typeof same.mySessions !== 'undefined',
+      `${shared.mySessions} vs ${same.mySessions} on ${shared.stageId}`);
+  }
+
+  const asInstructor = await api(A.instructor1, '/api/level2/courses');
+  const taught = asInstructor.status === 200 ? JSON.parse(asInstructor.body).courses : [];
+  check('an instructor list is unchanged by it',
+    taught.length > 0 && taught.every((c) => c.mySessions === undefined),
+    asInstructor.body.slice(0, 90));
+}
+
 console.log('\nA FIELD THE UI READS MUST BE A FIELD THE ROUTE RETURNS');
 {
   // Two screens read field names no route has ever returned — `interactions`

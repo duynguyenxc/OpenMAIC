@@ -61,14 +61,33 @@ export function GET(req: Request): Promise<Response> {
       return json({ role: actor.role, courses: rows }, 200, headers);
     }
 
+    // A student's own standing in each course. The instructor's Results tab
+    // has always reported their sessions and records; the student's own
+    // dashboard reported neither, so somebody who had spent an hour in a class
+    // was told they had done nothing (O23). Scoped to this learner by
+    // `learner_key`, which the server derives — never sent by the browser.
     const { rows } = await pool.query(
-      `${BASE}
+      `${BASE.replace(
+        'FROM courses c',
+        `, (SELECT count(DISTINCT s.id) FROM runtime_sessions s
+              WHERE s.stage_id = c.openmaic_stage_id
+                AND s.learner_key = 'user:' || $2)                     AS "mySessions",
+           (SELECT count(rec.id) FROM runtime_sessions s
+              LEFT JOIN runtime_records rec ON rec.session_id = s.id
+             WHERE s.stage_id = c.openmaic_stage_id
+               AND s.learner_key = 'user:' || $2)                      AS "myRecords",
+           (SELECT max(GREATEST(s.updated_at, s.created_at))
+              FROM runtime_sessions s
+             WHERE s.stage_id = c.openmaic_stage_id
+               AND s.learner_key = 'user:' || $2)                      AS "myLastActivityAt"
+      FROM courses c`,
+      )}
        JOIN enrollments e ON e.course_id = c.id
                          AND e.student_id = $1
                          AND e.status = 'ACTIVE'
        WHERE c.status = 'PUBLISHED'
        ORDER BY c.created_at DESC`,
-      [actor.profileId],
+      [actor.profileId, actor.authUserId],
     );
     return json({ role: actor.role, courses: rows }, 200, headers);
   });

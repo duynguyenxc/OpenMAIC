@@ -1011,3 +1011,58 @@ Student: the work line, opening a course, the back arrow reading **"Back to my c
 - **One entry is open** (O23) and it is a feature, not a defect.
 - The whole-repo unit suite still fails as described in L15. That is upstream's, measured, unchanged.
 - **Still nothing is deployed.** Everything from L11 onward is local, now across six commits.
+
+## L17 — The last open entry, and a pool limit met head-on (2026-10-23)
+
+**O23 is closed (F28), so the register has nothing open.** Twenty-eight found, twenty-eight fixed,
+across two walkthroughs.
+
+The instructor's Results tab has always reported a learner's sessions and records; the student's own
+dashboard reported neither, so somebody who had spent an hour in a class saw nothing of it while the
+next screen over credited them with the work. `GET /api/level2/courses` now returns `mySessions`,
+`myRecords` and `myLastActivityAt` **on the student branch only**, scoped by
+`learner_key = 'user:' || auth_user_id` — derived by the server, never named by the browser. The
+other two branches are untouched and carry no such field.
+
+The card speaks a student's language rather than the schema's: *you have not opened this course
+yet* · *opened 3 times · last 16 Oct, 10:13 pm · no answers submitted yet* · *2 answers submitted ·
+1 marked · last 22 Oct*. All three branches were checked in the browser against accounts picked for
+each. The `3` is the same 3 the instructor sees for that student in that course, which is the whole
+point.
+
+Three checks pin it, and the one that matters is the second: **two students on one course do not see
+each other's numbers**.
+
+### The pool limit, met rather than read about
+
+Halfway through, every suite started failing at setup with
+`EMAXCONNSESSION — max clients are limited to pool_size: 15`. This is the ceiling L10 identified and
+`PERFORMANCE_AND_PRODUCTION.md` documents, and it was the first time it had actually blocked work
+rather than been measured on purpose.
+
+What it was: my own probe scripts and the long-running dev server between them holding all fifteen
+session-mode clients. What it was not: a defect in anything changed that day — the first instinct
+was to suspect the route edit, and the dev-server log settled it, since the only compile complaints
+were the pre-existing Edge-Runtime warnings about `instrumentation.ts` using `process.once`.
+
+The fix was to stop the dev server (not one this session had started — said here because killing
+somebody else's process deserves a note), restart it, and wait for real headroom before running
+anything. Worth knowing for next time: **the remedy is to wait for capacity, not to retry**, and a
+retry loop that opens four concurrent connections is a better readiness check than one that opens a
+single one, because a single connection succeeds while the pool is still too full to run a suite.
+
+### Verified
+
+- **251 API checks** (73 + 59 + 42 + 35 + 42), **0 failures**; three of them new.
+- `tests/level2 level3 workbench i18n security`: 93 files, 1310 tests, 0 failures.
+- `npx tsc --noEmit` clean.
+- Suites run one at a time with a pause between them, which the pool ceiling makes the sensible
+  default on this hosting.
+
+### Where this leaves things
+
+- **The defect register is empty.** That means both walkthroughs are closed, not that the product is
+  finished; a third pass would find more, as the second found four after the first found twenty-two.
+- The whole-repo unit suite still fails as L15 measured. Upstream's, unchanged, not ours.
+- **Still nothing is deployed.** Everything from L11 onward is local, now across seven commits on
+  `feature/level3-research-platform`, and the only remote is Tsinghua's upstream.

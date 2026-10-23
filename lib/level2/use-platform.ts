@@ -25,6 +25,10 @@ export interface CourseSummary {
   coInstructorCount: string | number;
   coInstructors: string[] | null;
   lastActivityAt: string | null;
+  /** A student's own standing in the course. Absent for other roles (O23). */
+  mySessions?: string | number | null;
+  myRecords?: string | number | null;
+  myLastActivityAt?: string | null;
 }
 
 async function getJson<T>(url: string): Promise<T> {

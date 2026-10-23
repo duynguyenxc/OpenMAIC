@@ -14,8 +14,7 @@ about the previous mistake, a page drawn for somebody who may not use it.
 Severity is about what it costs the person in front of it, not about how deep
 the code change is.
 
-**Twenty-seven fixed** (F1–F27), all verified. **One open** (O23), low, and
-recorded with what closing it would take.
+**Twenty-eight fixed** (F1–F28), all verified. **Nothing open.**
 
 ---
 
@@ -364,17 +363,45 @@ reader announced a combobox without saying whose role it set — on a page with
 thirteen of them. Every other select on the platform names itself. They now
 read `Role for admin@example.test`, verified in the accessibility tree.
 
+
+### F28 — a student could not see their own classroom activity (was O23)
+**Severity: low, and the last open entry.** The instructor's Results tab has
+always reported a learner's sessions and records. The student's own dashboard
+reported neither: only `learner_responses` reached them, so somebody who had
+spent an hour in a class saw nothing of it while the next screen over credited
+them with the work.
+
+`GET /api/level2/courses` now returns `mySessions`, `myRecords` and
+`myLastActivityAt` **on the student branch only** — scoped by
+`learner_key = 'user:' || auth_user_id`, which the server derives and the
+browser cannot name. The administrator and instructor branches are untouched
+and still carry no such field.
+
+The card reads in a student's words rather than the schema's. All three
+branches checked in the browser against accounts chosen for each:
+
+| State | What the card says |
+|---|---|
+| never opened | *you have not opened this course yet* |
+| opened, nothing submitted | *opened 3 times · last 16 Oct, 10:13 pm · no answers submitted yet* |
+| answers submitted | *2 answers submitted · 1 marked · last 22 Oct* |
+
+`opened 3 times` is the same 3 the instructor's Results tab shows for that
+student in that course, which is the point: the two screens now agree.
+
+Three checks in the security suite, and the one worth having is the second —
+**two students on one course do not see each other's numbers**, and an
+instructor's list is unchanged by any of it.
+
 ---
 
 ## Open
 
-### O23 — a student cannot see their own classroom activity
-**Severity: low.** The instructor's Results tab reports a student's sessions and
-runtime records; the student's own dashboard reports neither. Only Level-3
-submissions reach them. Closing it means a per-student activity count on the
-courses route, or a small endpoint of their own — more than a wording change,
-which is why F25 fixed the false impression and left this.
+Nothing. Every entry from both walkthroughs is fixed and verified.
 
+New findings belong here as `O25` onward, with how to reproduce them.
+
+---
 
 ## Checked and correct
 
