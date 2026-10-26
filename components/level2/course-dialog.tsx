@@ -97,6 +97,12 @@ export function CourseDialog({
   const [students, setStudents] = useState<Student[] | null>(null);
   const [team, setTeam] = useState<CoInstructor[] | null>(null);
   const [results, setResults] = useState<ResultRow[] | null>(null);
+  /** Open-ended answers across the course: what v3 calls response status. */
+  const [answers, setAnswers] = useState<{ submitted: number; marked: number } | null>(null);
+  const [exportStudent, setExportStudent] = useState('');
+  const [exportActivity, setExportActivity] = useState('');
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
   const [trajectory, setTrajectory] = useState<{ email: string; events: TrajectoryEvent[] } | null>(
     null,
   );
@@ -118,6 +124,26 @@ export function CourseDialog({
     setStudents(s.ok ? ((await s.json()).students as Student[]) : []);
     setTeam(t.ok ? ((await t.json()).instructors as CoInstructor[]) : []);
     setResults(r.ok ? ((await r.json()).students as ResultRow[]) : []);
+
+    // Level-3 answers are a separate store from the Level-2 runtime, so the
+    // overview needs its own read. A course with no rubric answers with an
+    // empty list, which is a zero rather than a failure.
+    const a = await fetch(`/api/level3/responses?stageId=${encodeURIComponent(stageId)}`, {
+      credentials: 'same-origin',
+    }).catch(() => null);
+    if (a?.ok) {
+      const { responses } = (await a.json()) as {
+        responses: Array<{ humanAssessments: number | string; reviewDecision: string | null }>;
+      };
+      setAnswers({
+        submitted: responses.length,
+        marked: responses.filter(
+          (x) => Number(x.humanAssessments) > 0 || x.reviewDecision === 'ACCEPTED',
+        ).length,
+      });
+    } else {
+      setAnswers({ submitted: 0, marked: 0 });
+    }
   }, [stageId]);
 
   // The dialog is keyed on the course by both call sites, so a different
@@ -151,6 +177,16 @@ export function CourseDialog({
       onChanged();
     }
     setBusy(false);
+  }
+
+  /** The export link, carrying whichever filters the instructor set. */
+  function exportHref(format: 'csv' | 'json'): string {
+    const q = new URLSearchParams({ format });
+    if (exportStudent) q.set('student', exportStudent);
+    if (exportActivity.trim()) q.set('activity', exportActivity.trim());
+    if (exportFrom) q.set('from', exportFrom);
+    if (exportTo) q.set('to', exportTo);
+    return `/api/level2/courses/${course?.stageId}/export?${q.toString()}`;
   }
 
   const json = (body: unknown): RequestInit => ({
@@ -380,13 +416,95 @@ export function CourseDialog({
 
           {/* ───────────── Results ───────────── */}
           <TabsContent value="results" className="space-y-3 pt-3">
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" asChild>
-                <a href={`/api/level2/courses/${course.stageId}/export?format=csv`}>Export CSV</a>
-              </Button>
-              <Button size="sm" variant="outline" asChild>
-                <a href={`/api/level2/courses/${course.stageId}/export?format=json`}>Export JSON</a>
-              </Button>
+            {results && results.length > 0 && (
+              <div className="bg-muted/50 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md px-3 py-2 text-xs sm:grid-cols-4">
+                <div>
+                  <div className="text-foreground text-base font-semibold tabular-nums">
+                    {results.length}
+                  </div>
+                  <div className="text-muted-foreground">enrolled</div>
+                </div>
+                <div>
+                  <div className="text-foreground text-base font-semibold tabular-nums">
+                    {results.filter((r) => Number(r.sessions) > 0).length}
+                  </div>
+                  <div className="text-muted-foreground">have opened it</div>
+                </div>
+                <div>
+                  <div className="text-foreground text-base font-semibold tabular-nums">
+                    {results.reduce((n, r) => n + Number(r.records ?? 0), 0)}
+                  </div>
+                  <div className="text-muted-foreground">interactions</div>
+                </div>
+                <div>
+                  <div className="text-foreground text-base font-semibold tabular-nums">
+                    {answers === null ? '…' : answers.submitted}
+                  </div>
+                  <div className="text-muted-foreground">
+                    answers{answers && answers.marked > 0 ? `, ${answers.marked} marked` : ''}
+                  </div>
+                </div>
+              </div>
+            )}
+            {results && results.length > 0 && (
+              <p className="text-muted-foreground text-xs">
+                Completion and quiz averages are not shown because this course records neither:
+                OpenMAIC stores quiz and PBL state only once an activity of that kind has been run,
+                and none has.
+              </p>
+            )}
+
+            {/* v3 asks for an export narrowed by student, activity and date
+                range. Leaving every box empty exports the whole course, which
+                is what the two buttons did before. */}
+            <div className="space-y-2 rounded-md border px-3 py-2">
+              <div className="flex flex-wrap gap-2">
+                <select
+                  className="border-input bg-background max-w-[14rem] rounded-md border px-2 py-1 text-sm"
+                  value={exportStudent}
+                  onChange={(e) => setExportStudent(e.target.value)}
+                  aria-label="Export which student"
+                >
+                  <option value="">Everyone on the course</option>
+                  {(results ?? []).map((r) => (
+                    <option key={r.email} value={r.email}>
+                      {r.email}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  className="max-w-[9rem]"
+                  placeholder="activity id"
+                  value={exportActivity}
+                  onChange={(e) => setExportActivity(e.target.value)}
+                  aria-label="Export which activity"
+                />
+                <Input
+                  className="max-w-[9.5rem]"
+                  type="date"
+                  value={exportFrom}
+                  onChange={(e) => setExportFrom(e.target.value)}
+                  aria-label="Export from date"
+                />
+                <Input
+                  className="max-w-[9.5rem]"
+                  type="date"
+                  value={exportTo}
+                  onChange={(e) => setExportTo(e.target.value)}
+                  aria-label="Export to date"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <a href={exportHref('csv')}>Export CSV</a>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <a href={exportHref('json')}>Export JSON</a>
+                </Button>
+                <span className="text-muted-foreground self-center text-xs">
+                  Empty boxes mean no limit.
+                </span>
+              </div>
             </div>
 
             {results?.length === 0 && (

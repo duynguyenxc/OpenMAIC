@@ -46,6 +46,8 @@ interface PlatformUser {
   status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   externalIdentifier: string | null;
   institution: string | null;
+  institutionId: string | null;
+  institutionShortName: string | null;
   createdAt: string;
 }
 
@@ -65,6 +67,9 @@ export default function AdminDashboard() {
   const me = useMe();
   const { courses, reload: reloadCourses } = useCourses();
   const [users, setUsers] = useState<PlatformUser[]>([]);
+  const [institutions, setInstitutions] = useState<
+    Array<{ id: string; name: string; shortName: string | null }>
+  >([]);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,6 +87,21 @@ export default function AdminDashboard() {
   useEffect(() => {
     void loadUsers();
   }, [loadUsers]);
+
+  // The institution selector needs the list; the endpoint is already
+  // administrator-readable and refuses students.
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/level3/institutions', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : { institutions: [] }))
+      .then((d) => {
+        if (!cancelled) setInstitutions(d.institutions ?? []);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function change(email: string, patch: Record<string, string>, done: string) {
     setMessage(null); // the previous answer is not this request's answer (O3)
@@ -230,7 +250,32 @@ export default function AdminDashboard() {
                       <span className="text-muted-foreground text-xs">{u.email}</span>
                     </td>
                     <td>{u.externalIdentifier ?? '—'}</td>
-                    <td>{u.institution ?? '—'}</td>
+                    <td>
+                      <select
+                        className="bg-background rounded border px-2 py-1 text-sm"
+                        value={u.institutionId ?? ''}
+                        aria-label={`Institution for ${u.email}`}
+                        onChange={(e) =>
+                          void change(
+                            u.email,
+                            { institutionId: e.target.value },
+                            e.target.value
+                              ? `${u.email} is now in ${
+                                  institutions.find((i) => i.id === e.target.value)?.shortName ??
+                                  'that institution'
+                                }.`
+                              : `${u.email} is no longer in an institution.`,
+                          )
+                        }
+                      >
+                        <option value="">—</option>
+                        {institutions.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.shortName ?? i.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td>
                       <select
                         className="bg-background rounded border px-2 py-1 text-sm disabled:opacity-50"

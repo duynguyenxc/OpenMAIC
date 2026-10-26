@@ -63,10 +63,32 @@ export function GET(req: Request, { params }: Params): Promise<Response> {
     const { stageId } = await params;
     await requireCourseInstructor(ownerId, stageId);
 
-    const format = (new URL(req.url).searchParams.get('format') ?? 'json').toLowerCase();
+    const query = new URL(req.url).searchParams;
+    const format = (query.get('format') ?? 'json').toLowerCase();
     if (format !== 'json' && format !== 'csv') {
       return apiError(400, 'INVALID_FORMAT', 'format must be csv or json', headers);
     }
+
+    // v3 asks for an export narrowed by activity, student, date range and data
+    // type. Every filter is optional and absent means "everything", so the
+    // plain link an instructor already had keeps working unchanged.
+    const student = query.get('student')?.trim().toLowerCase() || null;
+    const activity = query.get('activity')?.trim() || null;
+    const from = query.get('from')?.trim() || null;
+    const to = query.get('to')?.trim() || null;
+    for (const [name, value] of [
+      ['from', from],
+      ['to', to],
+    ] as const) {
+      if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return apiError(400, 'INVALID_DATE', `${name} must be a date like 2026-10-23`, headers);
+      }
+    }
+    // `types` is a comma-separated list of activity types to keep.
+    const types = (query.get('types') ?? '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
 
     const pool = await level2Pool();
     const { rows: courseRows } = await pool.query(
@@ -74,7 +96,25 @@ export function GET(req: Request, { params }: Params): Promise<Response> {
       [stageId],
     );
     const title = (courseRows[0] as { title?: string } | undefined)?.title ?? '';
-    const events = await courseTrajectory(stageId);
+    const all = await courseTrajectory(stageId);
+    const events = all.filter((e) => {
+      if (
+        student &&
+        (e.email ?? '').toLowerCase() !== student &&
+        (e.externalIdentifier ?? '').toLowerCase() !== student
+      )
+        return false;
+      if (activity && e.activityId !== activity) return false;
+      if (types.length && !types.includes(e.activityType ?? '')) return false;
+      // A date filter on a row with no timestamp would silently drop the
+      // opened-but-empty sessions, so those are kept unless a range is asked
+      // for — at which point "no timestamp" cannot be inside it.
+      const when = e.createdAt ?? e.sessionStartedAt;
+      if ((from || to) && !when) return false;
+      if (from && when && when.slice(0, 10) < from) return false;
+      if (to && when && when.slice(0, 10) > to) return false;
+      return true;
+    });
 
     const flat = events.map((event) => ({
       course_id: stageId,

@@ -28,6 +28,7 @@ import { PlatformShell } from '@/components/level2/platform-shell';
 import { TemplateLibrary } from '@/components/level3/template-library';
 import { AssessmentPanel } from '@/components/level3/assessment-panel';
 import { KnowledgePanel } from '@/components/level3/knowledge-panel';
+import { ToolSection } from '@/components/level2/tool-section';
 import {
   formatWhen,
   useCourses,
@@ -227,9 +228,16 @@ export default function InstructorDashboard() {
                   <div className="truncate font-medium">{c.title}</div>
                   {/* The id and the date are what tell six courses called
                       "Course A" apart (S3-5). */}
+                  {/* v2 asks this row for the co-instructors too; the
+                      administrator's table had them and the instructor's own
+                      list did not, so a shared course looked like a solo one. */}
                   <div className="text-muted-foreground truncate text-xs">
-                    {c.stageId} · {c.studentCount} student{Number(c.studentCount) === 1 ? '' : 's'}{' '}
-                    · last activity {formatWhen(c.lastActivityAt)}
+                    {c.stageId} · {c.studentCount} student{Number(c.studentCount) === 1 ? '' : 's'}
+                    {' · '}
+                    {Number(c.coInstructorCount) > 0
+                      ? `with ${(c.coInstructors ?? []).join(', ')}`
+                      : 'no co-instructors'}
+                    {' · '}last activity {formatWhen(c.lastActivityAt)}
                   </div>
                 </>
               )}
@@ -304,14 +312,32 @@ export default function InstructorDashboard() {
         ))}
       </div>
 
-      {/* Level 3A: publish a module, or run somebody else's. */}
-      <TemplateLibrary courses={courses} onChanged={reload} />
+      {/* The three Level-3 tools, closed until wanted. Expanded they put
+          fourteen input controls under the course list for anyone who came
+          only to look at their classes. */}
+      <ToolSection
+        id="modules"
+        title="Shared modules"
+        summary="Publish one of your courses for colleagues, or start a course from somebody else's module."
+      >
+        <TemplateLibrary courses={courses} onChanged={reload} />
+      </ToolSection>
 
-      {/* Level 3B: rubrics, AI assessment, human review, feedback. */}
-      <AssessmentPanel courses={courses} />
+      <ToolSection
+        id="assessment"
+        title="Rubrics and assessment"
+        summary="Attach a rubric to an activity, let the AI mark against it, then review or override every score."
+      >
+        <AssessmentPanel courses={courses} />
+      </ToolSection>
 
-      {/* Level 3C: knowledge sources, retrieval, bounded agents. */}
-      <KnowledgePanel courses={courses} />
+      <ToolSection
+        id="knowledge"
+        title="Knowledge resources"
+        summary="Give a course its own documents or knowledge graph for the agents to draw on."
+      >
+        <KnowledgePanel courses={courses} />
+      </ToolSection>
 
       <CourseDialog
         // Remounts per course and tab, so the dialog's state starts fresh

@@ -26,10 +26,19 @@ export function GET(req: Request): Promise<Response> {
     await requireAdmin(ownerId);
     const pool = await level2Pool();
     const { rows } = await pool.query(
-      `SELECT id, email, display_name AS "displayName", role, status,
-              external_identifier AS "externalIdentifier", institution,
-              created_at AS "createdAt"
-         FROM user_profiles ORDER BY role, email`,
+      `SELECT up.id, up.email, up.display_name AS "displayName", up.role, up.status,
+              up.external_identifier AS "externalIdentifier",
+              -- Two columns once meant "institution": a v2 free-text field and
+              -- the Level-3 foreign key the platform actually decides sharing
+              -- by. The key wins, and the text is a fallback for anything
+              -- recorded before institutions existed.
+              i.id                   AS "institutionId",
+              COALESCE(i.name, up.institution) AS institution,
+              i.short_name           AS "institutionShortName",
+              up.created_at AS "createdAt"
+         FROM user_profiles up
+         LEFT JOIN institutions i ON i.id = up.primary_institution_id
+        ORDER BY up.role, up.email`,
     );
     return json({ users: rows }, 200, headers);
   });
@@ -43,6 +52,7 @@ export function PATCH(req: Request): Promise<Response> {
       role?: unknown;
       status?: unknown;
       institution?: unknown;
+      institutionId?: unknown;
     };
     if (typeof body.email !== 'string' || !body.email.trim()) {
       return apiError(400, 'EMAIL_REQUIRED', 'email is required', headers);
@@ -77,6 +87,26 @@ export function PATCH(req: Request): Promise<Response> {
     if (typeof body.institution === 'string') {
       values.push(body.institution);
       updates.push(`institution = $${values.length}`);
+    }
+    // Putting somebody in an institution had no route at all: only the Level-3
+    // seed script set `primary_institution_id`, so an account created through
+    // the product belonged to no institution and INSTITUTION-scoped sharing
+    // could never reach it. An empty string clears the link.
+    if (typeof body.institutionId === 'string') {
+      const wanted = body.institutionId.trim();
+      if (!wanted) {
+        updates.push('primary_institution_id = NULL');
+      } else {
+        const pool0 = await level2Pool();
+        const { rows: found } = await pool0.query(`SELECT id FROM institutions WHERE id = $1`, [
+          wanted,
+        ]);
+        if (!found[0]) {
+          return apiError(404, 'NO_SUCH_INSTITUTION', 'no institution with that id', headers);
+        }
+        values.push(wanted);
+        updates.push(`primary_institution_id = $${values.length}`);
+      }
     }
     if (!updates.length) return apiError(400, 'NOTHING_TO_UPDATE', 'no changes given', headers);
 

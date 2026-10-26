@@ -43,6 +43,14 @@ export function GET(req: Request): Promise<Response> {
               CASE WHEN $3 THEN NULL ELSE up.email END AS email,
               (SELECT count(*) FROM assessments a WHERE a.response_id = lr.id AND a.assessor_kind = 'AI') AS "aiAssessments",
               (SELECT count(*) FROM assessments a WHERE a.response_id = lr.id AND a.assessor_kind = 'HUMAN') AS "humanAssessments",
+              -- Totals for each assessor, so a caller can see where the two
+              -- disagree without fetching every dimension of every response.
+              (SELECT sum(s.score)::float FROM assessment_scores s
+                 JOIN assessments a ON a.id = s.assessment_id
+                WHERE a.response_id = lr.id AND a.assessor_kind = 'AI')    AS "aiTotal",
+              (SELECT sum(s.score)::float FROM assessment_scores s
+                 JOIN assessments a ON a.id = s.assessment_id
+                WHERE a.response_id = lr.id AND a.assessor_kind = 'HUMAN') AS "humanTotal",
               (SELECT decision FROM assessment_reviews ar WHERE ar.response_id = lr.id
                 ORDER BY ar.created_at DESC LIMIT 1) AS "reviewDecision",
               (SELECT count(*) FROM feedback_events fe WHERE fe.response_id = lr.id) AS "feedbackCount"

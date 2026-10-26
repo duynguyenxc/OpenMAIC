@@ -39,6 +39,9 @@ interface ResponseRow {
   studentId: string | null;
   aiAssessments: string;
   humanAssessments: string;
+  /** Totals per assessor, so disagreement is visible without opening each one. */
+  aiTotal: number | null;
+  humanTotal: number | null;
   reviewDecision: string | null;
   feedbackCount: string;
 }
@@ -53,6 +56,18 @@ interface Scores {
   human: { assessmentId: string; scores: DimensionScore[] } | null;
   review: { decision: string; feedback: string | null } | null;
   final: { source: string; scores: DimensionScore[] };
+}
+
+/**
+ * Did the human and the model reach a different total?
+ *
+ * Only meaningful once both have scored; one score alone is not a
+ * disagreement, and neither is a response nobody has marked.
+ */
+function disagrees(r: ResponseRow): boolean {
+  if (Number(r.aiAssessments) === 0 || Number(r.humanAssessments) === 0) return false;
+  if (r.aiTotal === null || r.humanTotal === null) return false;
+  return Math.abs(r.humanTotal - r.aiTotal) > 0.001;
 }
 
 const POLICIES = ['OFF', 'ON', 'AFTER_FIRST_RESPONSE', 'AFTER_SUBMISSION', 'ON_REQUEST'] as const;
@@ -216,6 +231,12 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
                 Refresh
               </Button>
             </div>
+            {responses && responses.some(disagrees) && (
+              <p className="text-muted-foreground px-3 pt-2 text-xs">
+                {responses.filter(disagrees).length} of {responses.length} marked answers have a
+                human score that differs from the AI&apos;s. Those are the ones worth reading.
+              </p>
+            )}
             {responses?.length === 0 && (
               <p className="text-muted-foreground px-3 py-4 text-sm">
                 No student has answered anything in this course yet.
@@ -235,6 +256,11 @@ export function AssessmentPanel({ courses }: { courses: CourseSummary[] | undefi
                   <div className="flex items-center gap-1">
                     {Number(r.aiAssessments) > 0 && <Badge variant="secondary">AI scored</Badge>}
                     {Number(r.humanAssessments) > 0 && <Badge>human scored</Badge>}
+                    {disagrees(r) && (
+                      <Badge variant="destructive">
+                        differ by {Math.abs((r.humanTotal ?? 0) - (r.aiTotal ?? 0)).toFixed(1)}
+                      </Badge>
+                    )}
                     {r.reviewDecision && <Badge variant="outline">{r.reviewDecision}</Badge>}
                     {Number(r.feedbackCount) > 0 && (
                       <Badge variant="outline">{r.feedbackCount} feedback</Badge>
