@@ -611,6 +611,107 @@ console.log('\nA STUDENT SEES THEIR OWN ACTIVITY, AND ONLY THEIR OWN');
   );
 }
 
+console.log('\nINSTITUTION: THE FIELD THE PLATFORM DECIDES BY');
+{
+  // The administrator's column read `user_profiles.institution`, a v2 free-text
+  // field nothing fills, while sharing is decided by `primary_institution_id`.
+  // And nothing could set that key, so an account made through the product
+  // belonged to no institution and INSTITUTION-scoped sharing never reached it.
+  const listed = await api(A.admin, '/api/level2/admin/users');
+  const users = listed.status === 200 ? JSON.parse(listed.body).users : [];
+  check(
+    'the user list carries the institution the platform decides by',
+    users.length > 0 && users.every((u) => 'institutionId' in u && 'institutionShortName' in u),
+    listed.body.slice(0, 110),
+  );
+
+  const insts = await api(A.admin, '/api/level3/institutions');
+  const first = insts.status === 200 ? JSON.parse(insts.body).institutions[0] : null;
+  if (first) {
+    const set = await api(A.admin, '/api/level2/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({ email: 'instructor2@example.test', institutionId: first.id }),
+    });
+    const after = JSON.parse((await api(A.admin, '/api/level2/admin/users')).body).users.find(
+      (u) => u.email === 'instructor2@example.test',
+    );
+    check(
+      'an administrator can put somebody in an institution',
+      set.status === 200 && after.institutionId === first.id,
+      `${set.status} → ${after?.institutionShortName}`,
+    );
+
+    const cleared = await api(A.admin, '/api/level2/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({ email: 'instructor2@example.test', institutionId: '' }),
+    });
+    const back = JSON.parse((await api(A.admin, '/api/level2/admin/users')).body).users.find(
+      (u) => u.email === 'instructor2@example.test',
+    );
+    check(
+      'and take them out again',
+      cleared.status === 200 && back.institutionId === null,
+      `${cleared.status} → ${back?.institutionId}`,
+    );
+
+    const bogus = await api(A.admin, '/api/level2/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        email: 'instructor2@example.test',
+        institutionId: '00000000-0000-0000-0000-000000000000',
+      }),
+    });
+    check(
+      'an institution id that does not exist is refused',
+      bogus.status === 404,
+      `got ${bogus.status}`,
+    );
+
+    const byInstructor = await api(A.instructor1, '/api/level2/admin/users', {
+      method: 'PATCH',
+      body: JSON.stringify({ email: 'instructor1@example.test', institutionId: first.id }),
+    });
+    check(
+      'an instructor cannot put themselves in one',
+      refused(byInstructor),
+      `got ${byInstructor.status}`,
+    );
+  }
+}
+
+console.log('\nEXPORT NARROWED BY WHAT v3 ASKS FOR');
+{
+  const rows = async (q) => {
+    const r = await api(A.instructor1, `/api/level2/courses/${COURSE_A}/export?format=json${q}`);
+    const d = r.status === 200 ? JSON.parse(r.body) : null;
+    const list = Array.isArray(d) ? d : (d?.rows ?? d?.events ?? null);
+    return { status: r.status, n: Array.isArray(list) ? list.length : -1 };
+  };
+  const all = await rows('');
+  check(
+    'an unfiltered export still returns the whole course',
+    all.status === 200 && all.n >= 0,
+    `${all.status}, ${all.n} rows`,
+  );
+
+  const one = await rows('&student=student1%40example.test');
+  const other = await rows('&student=student2%40example.test');
+  check(
+    'filtering by student splits the course between them',
+    one.n + other.n === all.n,
+    `${one.n} + ${other.n} vs ${all.n}`,
+  );
+
+  const none = await rows('&activity=no-such-activity');
+  check('an activity nobody used exports nothing', none.n === 0, `${none.n} rows`);
+
+  const past = await rows('&from=2020-01-01&to=2020-01-02');
+  check('a date range before the course exports nothing', past.n === 0, `${past.n} rows`);
+
+  const bad = await api(A.instructor1, `/api/level2/courses/${COURSE_A}/export?from=yesterday`);
+  check('an unparseable date is refused, not ignored', bad.status === 400, `got ${bad.status}`);
+}
+
 console.log('\nA FIELD THE UI READS MUST BE A FIELD THE ROUTE RETURNS');
 {
   // Two screens read field names no route has ever returned — `interactions`

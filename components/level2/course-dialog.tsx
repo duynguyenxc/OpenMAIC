@@ -48,6 +48,7 @@ interface CoInstructor {
 interface ResultRow {
   email: string;
   externalIdentifier: string | null;
+  enrollmentStatus: string;
   sessions: number;
   /** `runtime_records` for this learner. The UI used to read `interactions`,
    *  which no route has ever returned, so the line said "· interactions ·"
@@ -420,9 +421,14 @@ export function CourseDialog({
               <div className="bg-muted/50 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md px-3 py-2 text-xs sm:grid-cols-4">
                 <div>
                   <div className="text-foreground text-base font-semibold tabular-nums">
-                    {results.length}
+                    {results.filter((r) => r.enrollmentStatus === 'ACTIVE').length}
                   </div>
-                  <div className="text-muted-foreground">enrolled</div>
+                  <div className="text-muted-foreground">
+                    enrolled
+                    {results.some((r) => r.enrollmentStatus !== 'ACTIVE')
+                      ? `, ${results.filter((r) => r.enrollmentStatus !== 'ACTIVE').length} inactive`
+                      : ''}
+                  </div>
                 </div>
                 <div>
                   <div className="text-foreground text-base font-semibold tabular-nums">
