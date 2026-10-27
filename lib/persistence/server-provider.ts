@@ -144,6 +144,45 @@ async function createServerPersistenceProvider(
 }
 
 /**
+ * One pool per process, sized for where the process actually runs.
+ *
+ * `pg` defaults to **ten** connections per pool and nothing set it otherwise.
+ * One Node server is then fine; a serverless deployment is not, because every
+ * warm instance holds its own pool and Supabase's session-mode pooler admits
+ * **fifteen clients in total**. Two warm instances could claim twenty, and the
+ * sixteenth connection — any connection, from anywhere — is refused with
+ * `EMAXCONNSESSION`. Every route that touches the database then answers 500,
+ * which from the outside looks exactly like the application falling over: the
+ * sign-in page loads, Supabase accepts the password, and `/api/level2/me`
+ * cannot read the profile.
+ *
+ * It survived earlier because there was rarely more than one warm instance.
+ * That is luck, not a design.
+ *
+ * A serverless invocation serves one request, so a small ceiling costs nothing
+ * and leaves room for everyone else — the other instances, the suites, and a
+ * person debugging with psql. The idle timeout returns a connection quickly
+ * rather than holding it for the life of a lambda that may sit warm for
+ * minutes between requests.
+ *
+ * The real headroom is Supabase's transaction pooler on port 6543, which
+ * admits hundreds. Moving there breaks the one session-scoped advisory lock in
+ * this codebase — the duplicate guard in `level2/courses/[stageId]/duplicate`,
+ * which uses `pg_advisory_lock` rather than the transaction-scoped variant
+ * everything else uses. That is a known change with a known cost, written up
+ * in `docs/PERFORMANCE_AND_PRODUCTION.md`, and not one to make while fixing an
+ * outage.
+ */
+const SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+const defaultPool: PersistencePoolFactory = (connectionString) =>
+  new Pool({
+    connectionString,
+    max: SERVERLESS ? 2 : 10,
+    idleTimeoutMillis: SERVERLESS ? 10_000 : 30_000,
+  });
+
+/**
  * Shared server bootstrap used by both HTTP persistence and Pi composition.
  *
  * The memo is keyed on the TRIMMED connection string, and the pool is built
@@ -158,7 +197,7 @@ async function createServerPersistenceProvider(
  */
 export function getServerPersistenceProvider(
   connectionString: string,
-  poolFactory: PersistencePoolFactory = (value) => new Pool({ connectionString: value }),
+  poolFactory: PersistencePoolFactory = defaultPool,
 ): Promise<ServerPersistenceProvider> {
   const key = connectionString.trim();
   if (providerState.providerPromise && providerState.connectionString === key) {
