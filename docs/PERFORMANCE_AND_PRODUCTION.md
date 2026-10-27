@@ -111,3 +111,48 @@ The parts that are load-bearing and correct: authorization on the server for eve
 learner identity derived from the session, the projection reading OpenMAIC's records rather than
 writing beside them, and research instrumentation staying off the teaching path — which is what
 lets any of the above be replaced without touching a classroom.
+
+---
+
+## The pool that took the deployment down (27 October 2026)
+
+Every route touching the database began answering 500 on the live deployment. The sign-in page
+loaded, Supabase accepted the password, and `/api/level2/me` could not read the profile — which
+from the outside is indistinguishable from the application being down.
+
+**The cause was the pool size, and it was never set.** `lib/persistence/server-provider.ts` built
+the pool with `new Pool({ connectionString })` and `pg` defaults to **ten** connections. One Node
+server is fine with that. A serverless deployment is not: each warm instance holds its own pool,
+and Supabase's session-mode pooler admits **fifteen clients in total**, so two warm instances can
+claim twenty and everything past the fifteenth is refused with `EMAXCONNSESSION`.
+
+It had survived because there was rarely more than one warm instance. That is luck, not a design,
+and it fails exactly when more than one person uses the platform — which is the condition the
+platform exists for.
+
+Now sized for where it runs: `max: 2` and a ten-second idle timeout under Vercel or Lambda, the
+former ten elsewhere. A serverless invocation serves one request, so two is ample and leaves room
+for the other instances, the test suites, and anyone debugging with `psql`.
+
+Measured against the live deployment after the change:
+
+| Concurrent requests to `/api/level2/courses` | Result |
+|---|---|
+| 5 | 5 OK, 0 failures (2,946 ms — cold start) |
+| 10 | 10 OK, 0 failures (730 ms) |
+| 20 | 20 OK, 0 failures (670 ms) |
+
+### What is still true
+
+The ceiling is still fifteen session-mode clients, and it is still the first thing that breaks
+here. Two things make it worse, both avoidable:
+
+- **Running `npm run dev` against the same database while the deployment is in use.** A dev server
+  holds its own pool of up to ten; it took the live site down on 23 October exactly this way.
+- Running the test suites locally at the same time, for the same reason.
+
+The real headroom is Supabase's **transaction pooler on port 6543**, which admits hundreds. Moving
+there breaks the one session-scoped advisory lock in this codebase — the duplicate guard in
+`app/api/level2/courses/[stageId]/duplicate`, which uses `pg_advisory_lock` where everything else
+uses the transaction-scoped variant. One known change, with a known cost. It is the right next step
+before any real cohort uses this, and the wrong thing to attempt during an outage.
