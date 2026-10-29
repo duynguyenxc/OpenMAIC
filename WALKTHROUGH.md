@@ -1184,3 +1184,84 @@ And: a repository whose CI has never run is not a repository with passing CI. Ch
 - `npx tsc --noEmit` — clean
 - **251 API checks**, 0 failures, after reformatting.
 - **1,725 unit tests** across `level2 level3 workbench i18n security store`, 0 failures.
+
+---
+
+## L20 — A second re-read of v2 and v3, and three outages with one cause (2026-10-26 → 10-29)
+
+Recorded late: six commits (`891c0653` … `bb0e6898`) landed over four days without a walkthrough
+entry, and the record below is reconstructed from those commits, `docs/PERFORMANCE_AND_PRODUCTION.md`
+and the live measurements taken on 29 October. The detail is right; the sequencing within each day
+may not be.
+
+### Seven gaps a re-read of the instruction documents found (`891c0653`, `ef31de8f`)
+
+Two were **wrong**, not merely missing:
+
+- The administrator's *Institution* column read `user_profiles.institution`, a Level-2 free-text
+  field nothing ever fills, while the platform decides INSTITUTION-scoped sharing from
+  `primary_institution_id`. Instructors who genuinely belonged to an institution showed `—`.
+- **Nothing in the product could set that key.** Only the Level-3 seed script did, so an account
+  created the normal way belonged to no institution and institution-scoped sharing could never
+  reach it. The column now reads the key the platform uses, and is a selector that sets it.
+
+The rest were absences the instructions name explicitly: the instructor's course row did not list
+co-instructors, so a shared course looked solo; the Results tab listed students and summarised
+nothing, where v3 asks for a course overview; both AI and human scores were stored and no screen
+said **where they differed**, which is the number a study is built on; and the export took only a
+format, where v3 asks for activity, student, date-range and type filters.
+
+One was a design fault rather than a defect, and it is the one the RA had actually noticed
+(*"phần role instructor trông hơi khó hiểu"*): the instructor page rendered three Level-3 tools
+under the course list, expanded, always — fourteen input controls in front of someone who came to
+look at their classes. `components/level2/tool-section.tsx` now collapses each behind a line saying
+what it is for.
+
+`ef31de8f` then caught the same class of bug F15 had already fixed once: the course overview counted
+every enrolment row while the Students tab beside it counted active ones. Two numbers, one course.
+
+### Three sign-in outages, and only the third diagnosis was right
+
+The deployment died three times. Every route touching the database answered 500; the sign-in page
+loaded, Supabase accepted the password, and `/api/level2/me` could not read the profile.
+
+1. **23 Oct** — a dev server on this laptop held connections. Killed it. True, and not the general case.
+2. **27 Oct** (`03ae7e24`) — `new Pool()` with no `max`, so pg's default of ten per pool, and
+   Supabase's *session* pooler admits fifteen clients in total. Two warm instances can claim twenty.
+   Set `max: 2`. **I said this fixed it. It did not.**
+3. **29 Oct** (`9c7fbabf`) — seventeen hours later the pooler was full again. Reading
+   `pg_stat_activity` through a borrowed slot showed fifteen **idle** Supavisor sessions. They
+   belonged to *frozen* Vercel instances: serverless freezes a lambda rather than ending it, so the
+   idle timeout never fires and the connection is held indefinitely. **No pool cap can help a
+   connection that is abandoned rather than busy.**
+
+The fix is the transaction pooler (port 6543), which returns the connection after every transaction
+and admits hundreds. Two session-scoped advisory locks stood in the way — correct against a direct
+connection, unsound behind a transaction pooler, where the lock outlives its work on a backend
+somebody else now holds.
+
+- The schema bootstrap lock takes `pg_advisory_xact_lock` inside a transaction on its own client.
+- The duplicate guard could not be converted, because it held its lock across `store.saveDocument`,
+  which runs on the storage layer's own connections. **The guarantee now comes from the database:**
+  `courses_owner_title_unique` refuses the second writer, and that `23505` is caught and answered
+  with the copy the winner made — which is what the caller wanted. A transaction-scoped lock still
+  serialises the lookup, which handles the double-click it was written for.
+
+### What was measured, and on what
+
+On the live deployment after the switch: **60 concurrent requests, 0 failures**; connections held
+afterwards **9**, where session mode sat at 15 and would not drop. All seven accounts sign in with
+the right role. All five API suites against the live site: **261 checks, 0 failures**.
+
+### What the next session must not assume
+
+- **Transaction mode has no session state.** `pg_advisory_lock`, `LISTEN/NOTIFY` and prepared
+  statements held across requests will misbehave **silently** — no error, wrong answer. Use
+  `pg_advisory_xact_lock`. This is the trap this architecture now carries permanently.
+- `docs/WHAT_IT_DOES_AND_LIMITS.md` is **stale**: written 16 October for Level 2 alone, it still
+  tells the reader there are no institutions, no studies, no rubrics and no research features. All
+  four exist. It is the plain-language document written for the professor, so the staleness is
+  pointed at the one person most likely to read it.
+- `docs/DEFECT_REGISTER.md` says *nothing open*, and that was true of the two walkthroughs it
+  records. It does not cover L20's findings, which were found by re-reading the instructions rather
+  than by pressing buttons.
