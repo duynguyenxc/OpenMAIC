@@ -42,6 +42,9 @@ function newStageId(): string {
 export function POST(req: Request, { params }: Params): Promise<Response> {
   return withRequestOwner(req, async (principal, headers) => {
     const { stageId } = await params;
+    // Declared out here so the unique-violation recovery below can reach them.
+    let pool: Awaited<ReturnType<typeof level2Pool>> | null = null;
+    let askedFor = '';
     try {
       // Entitled to the source: OWNER, EDITOR, VIEWER or ADMIN. A course this
       // instructor cannot see cannot be cloned.
@@ -59,7 +62,7 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       // document's name here produced "Course A (copy)" from a course the
       // instructor sees as "Demo 1 — Realist Evaluation", which is the sort of
       // small lie that makes a product feel untrustworthy.
-      const pool = await level2Pool();
+      pool = await level2Pool();
       const { rows: sourceRow } = await pool.query(
         `SELECT title, owner_instructor_id AS "ownerId"
            FROM courses WHERE openmaic_stage_id = $1`,
@@ -78,7 +81,7 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
           ? `${platformTitle}${SUFFIX}`
           : `${platformTitle.slice(0, TITLE_MAX - SUFFIX.length).trimEnd()}${SUFFIX}`;
 
-      const askedFor =
+      askedFor =
         typeof body.title === 'string' && body.title.trim() ? body.title.trim() : generated;
 
       const problem = titleProblem(askedFor);
@@ -90,27 +93,59 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
       //
       // The check has to be serialised or it races itself: two requests a few
       // milliseconds apart each looked, each saw nothing, and each created a
-      // course. An advisory lock on (owner, title) makes the second wait for
-      // the first to finish, so it sees the row and returns it. The lock is
-      // released in `finally`, and it is advisory, so nothing is blocked if
-      // this process dies holding it.
+      // course.
+      //
+      // This used to hold a **session-scoped** `pg_advisory_lock` across the
+      // whole copy, including `store.saveDocument`, which runs on the storage
+      // layer's own connections. That works against a direct connection and
+      // breaks behind a transaction-mode pooler, where a connection goes back
+      // to the pool after each transaction: the lock would outlive its work on
+      // a backend somebody else is now using. It was the one thing standing
+      // between this deployment and a pooler that admits hundreds of clients
+      // instead of fifteen.
+      //
+      // Two defences replace it, and the second is the one that actually
+      // guarantees the result:
+      //
+      //  1. a **transaction-scoped** lock around the lookup alone — short,
+      //     released by COMMIT, correct under either pooling mode, and enough
+      //     to serialise the common double-click;
+      //  2. `courses_owner_title_unique`. If two requests get past the lookup
+      //     together they both choose the same free title, and the database
+      //     refuses the second. That refusal is caught below and answered with
+      //     the copy the winner made, which is what the caller wanted anyway.
       const lockKey = `duplicate:${principal.ownerId}:${askedFor}`;
-      const lock = await pool.connect();
-      await lock.query('SELECT pg_advisory_lock(hashtext($1))', [lockKey]);
-      try {
-        const { rows: recent } = await pool.query(
-          `SELECT c.openmaic_stage_id AS "stageId", c.title
-           FROM courses c
-           JOIN user_profiles up ON up.id = c.owner_instructor_id
-          WHERE (c.title = $1 OR c.title LIKE $1 || ' %')
-            AND up.auth_user_id::text = $2
-            AND c.created_at > now() - interval '15 seconds'
-          ORDER BY c.created_at DESC
-          LIMIT 1`,
-          [askedFor, (principal.ownerId ?? '').replace(/^user:/, '')],
-        );
+      const db = pool;
+      const findRecent = async () => {
+        const lock = await db.connect();
+        try {
+          await lock.query('BEGIN');
+          await lock.query('SELECT pg_advisory_xact_lock(hashtext($1))', [lockKey]);
+          const { rows } = await lock.query(
+            `SELECT c.openmaic_stage_id AS "stageId", c.title
+               FROM courses c
+               JOIN user_profiles up ON up.id = c.owner_instructor_id
+              WHERE (c.title = $1 OR c.title LIKE $1 || ' %')
+                AND up.auth_user_id::text = $2
+                AND c.created_at > now() - interval '15 seconds'
+              ORDER BY c.created_at DESC
+              LIMIT 1`,
+            [askedFor, (principal.ownerId ?? '').replace(/^user:/, '')],
+          );
+          await lock.query('COMMIT');
+          return rows as Array<{ stageId: string; title: string }>;
+        } catch (error) {
+          await lock.query('ROLLBACK').catch(() => {});
+          throw error;
+        } finally {
+          lock.release();
+        }
+      };
+
+      {
+        const recent = await findRecent();
         if (recent[0]) {
-          const already = recent[0] as { stageId: string; title: string };
+          const already = recent[0];
           return json(
             {
               stageId: already.stageId,
@@ -149,14 +184,40 @@ export function POST(req: Request, { params }: Params): Promise<Response> {
         ]);
 
         return json({ stageId: copyId, title, copiedFrom: stageId }, 201, headers);
-      } finally {
-        await lock.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]).catch(() => {});
-        lock.release();
       }
     } catch (error) {
       const { AuthorizationError } = await import('@/lib/level2/authorization');
       if (error instanceof AuthorizationError) {
         return apiError(error.status, error.code, error.message, headers);
+      }
+      // Two requests chose the same free title and the database refused the
+      // second — which is the duplicate guard working, not a fault. Answer
+      // with the copy the winner made: that is what this request asked for.
+      if ((error as { code?: string } | null)?.code === '23505' && pool) {
+        const { rows } = await pool.query(
+          `SELECT c.openmaic_stage_id AS "stageId", c.title
+             FROM courses c
+             JOIN user_profiles up ON up.id = c.owner_instructor_id
+            WHERE (c.title = $1 OR c.title LIKE $1 || ' %')
+              AND up.auth_user_id::text = $2
+              AND c.created_at > now() - interval '15 seconds'
+            ORDER BY c.created_at DESC
+            LIMIT 1`,
+          [askedFor, (principal.ownerId ?? '').replace(/^user:/, '')],
+        );
+        const already = rows[0] as { stageId: string; title: string } | undefined;
+        if (already) {
+          return json(
+            {
+              stageId: already.stageId,
+              title: already.title,
+              copiedFrom: stageId,
+              deduplicated: true,
+            },
+            200,
+            headers,
+          );
+        }
       }
       console.error('[level2] duplicate failed', error);
       return apiError(500, 'INTERNAL', 'duplicate failed', headers);
