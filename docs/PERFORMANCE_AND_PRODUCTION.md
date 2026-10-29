@@ -96,7 +96,7 @@ Changes from the prototype, each with its reason:
 
 | Change | Why |
 |---|---|
-| **Transaction-mode pooling, or PgBouncer with a real pool size** | the measured limit above. Requires replacing the one session-level advisory lock |
+| ~~**Transaction-mode pooling, or PgBouncer with a real pool size**~~ — **done 29 Oct 2026** | the measured limit above. Both session-level advisory locks were replaced; see the section at the end of this document |
 | **Uploads to object storage** | `response_media.bytes` is `bytea`; a cohort's recordings do not belong in a row |
 | **Job workers as their own replicas** | the queue is drained by an HTTP route today, so nobody drains it unless someone calls it |
 | **A scheduler** | transcription and projection should run without being asked |
